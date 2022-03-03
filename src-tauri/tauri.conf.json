@@ -1,0 +1,66 @@
+{
+  "package": {
+    "productName": "PeCa Starter",
+    "version": "5.99.0"
+  },
+  "build": {
+    "distDir": "../dist",
+    "devPath": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "net.prgrssv.pecastarter",
+      "icon": ["icons/icon.ico"],
+      "resources": [],
+      "externalBin": [],
+      "copyright": "Progre",
+      "category": "DeveloperTool",
+      "shortDescription": "",
+      "longDescription": "",
+      "deb": {
+        "depends": [],
+        "useBootstrapper": false
+      },
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "useBootstrapper": false,
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "providerShortName": null,
+        "entitlements": null
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "updater": {
+      "active": false
+    },
+    "allowlist": {
+      "notification": {
+        "all": true
+      }
+    },
+    "windows": [
+      {
+        "title": "PeCa Starter",
+        "width": 512,
+        "height": 320,
+        "minWidth": 320,
+        "minHeight": 240,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

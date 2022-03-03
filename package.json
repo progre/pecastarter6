@@ -1,0 +1,32 @@
+{
+  "name": "pecastarter",
+  "version": "1.0.0",
+  "dependencies": {
+    "@emotion/react": "^11.8.1",
+    "@emotion/styled": "^11.8.1",
+    "@mui/icons-material": "^5.4.2",
+    "@mui/lab": "^5.0.0-alpha.69",
+    "@mui/material": "^5.4.2",
+    "@reduxjs/toolkit": "^1.7.2",
+    "@tauri-apps/api": "^1.0.0-rc.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-redux": "^7.2.6"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.0.0-rc.5",
+    "@types/react": "^17.0.33",
+    "@types/react-dom": "^17.0.10",
+    "@vitejs/plugin-react": "^1.0.7",
+    "cross-env": "^7.0.3",
+    "typescript": "^4.5.4",
+    "vite": "^2.8.0"
+  },
+  "private": true,
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "tauri": "cross-env RUST_BACKTRACE=1 tauri"
+  }
+}
