@@ -1,3 +1,5 @@
+use std::num::NonZeroU16;
+
 use log::trace;
 use tokio::{
     io::copy,
@@ -26,13 +28,13 @@ pub async fn pipe(incoming: TcpStream, outgoing: TcpStream) {
     trace!("End piping {:?} {:?}", result1, result2);
 }
 
-pub async fn find_free_port() -> Option<u16> {
+pub async fn find_free_port() -> Option<NonZeroU16> {
     match TcpListener::bind("0.0.0.0:0").await {
         Ok(listener) => {
             let addr_opt = listener.local_addr();
             drop(listener);
             match addr_opt {
-                Ok(addr) => Some(addr.port()),
+                Ok(addr) => Some(NonZeroU16::new(addr.port()).unwrap()),
                 Err(_) => None,
             }
         }

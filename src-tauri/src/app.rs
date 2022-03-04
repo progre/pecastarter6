@@ -103,13 +103,7 @@ impl UiDelegate for App {
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
-            let res = broadcasting
-                .update(
-                    settings.general_settings.peer_cast_port,
-                    &settings.general_settings.channel_name[0],
-                    &settings.channel_settings,
-                )
-                .await;
+            let res = broadcasting.update(&settings).await;
             if let Some(err) = res.err() {
                 error!("{:?}", err);
                 notify_failure(self.window.lock().await, &err);
@@ -128,13 +122,7 @@ impl UiDelegate for App {
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
-            let res = broadcasting
-                .update(
-                    settings.general_settings.peer_cast_port,
-                    &settings.general_settings.channel_name[0],
-                    &settings.channel_settings,
-                )
-                .await;
+            let res = broadcasting.update(&settings).await;
             if let Some(err) = res.err() {
                 error!("{:?}", err);
                 notify_failure(self.window.lock().await, &err);
@@ -153,13 +141,7 @@ impl UiDelegate for App {
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
-            let res = broadcasting
-                .update(
-                    settings.general_settings.peer_cast_port,
-                    &settings.general_settings.channel_name[0],
-                    &settings.channel_settings,
-                )
-                .await;
+            let res = broadcasting.update(&settings).await;
             if let Some(err) = res.err() {
                 error!("{:?}", err);
                 notify_failure(self.window.lock().await, &err);
