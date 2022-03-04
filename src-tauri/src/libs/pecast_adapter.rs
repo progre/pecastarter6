@@ -38,6 +38,7 @@ where
     jsonrpc: String,
     id: i32,
     method: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     params: Option<T>,
 }
 
