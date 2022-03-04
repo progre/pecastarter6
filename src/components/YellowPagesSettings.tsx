@@ -44,6 +44,7 @@ export default function YellowPagesSettings(props: {
         <TextField
           label="IPv4 掲載 YP 固有設定"
           type="text"
+          value={settings.ipv4YpGenrePrefix}
           onChangeValue={(value) => update({ ipv4YpGenrePrefix: value })}
         />
       </div>
@@ -57,11 +58,13 @@ export default function YellowPagesSettings(props: {
         <TextField
           label="IPv6 掲載 YP ホスト"
           type="text"
+          value={settings.ipv6YpHost}
           onChangeValue={(value) => update({ ipv6YpHost: value })}
         />
         <TextField
           label="IPv6 掲載 YP 固有設定"
           type="text"
+          value={settings.ipv6YpGenrePrefix}
           onChangeValue={(value) => update({ ipv6YpGenrePrefix: value })}
         />
       </div>
