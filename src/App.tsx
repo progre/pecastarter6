@@ -6,9 +6,13 @@ import ChannelSettings from './components/ChannelSettings';
 import GeneralSettings from './components/GeneralSettings';
 import YellowPagesSettings from './components/YellowPagesSettings';
 import Settings from './entities/Settings';
+import YPConfig from './entities/YPConfig';
 import listenWrapped from './utils/listenWrapped';
 
-export default function App(props: { settings: Settings }) {
+export default function App(props: {
+  ypConfigs: readonly YPConfig[];
+  settings: Settings;
+}) {
   const [notifications, setNotifications] = useState<
     readonly {
       level: string;
@@ -36,6 +40,7 @@ export default function App(props: { settings: Settings }) {
         </TabContent>
         <TabContent label="YP 設定">
           <YellowPagesSettings
+            ypConfigs={props.ypConfigs}
             defaultSettings={props.settings.yellowPagesSettings}
           />
         </TabContent>

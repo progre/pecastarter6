@@ -1,0 +1,13 @@
+{
+  "name": "芝YP",
+  "termsURL": "http://takami98.sakura.ne.jp/peca-navi/turf-page/about.php",
+  "host": "takami98.luna.ddns.vc",
+  "supportIpv6": false,
+  "prefixHeader": "tp",
+  "supportedParams": [
+    "hide_listeners",
+    "icon",
+    "port_bandwidth_check",
+    "no_log"
+  ]
+}

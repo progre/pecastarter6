@@ -9,11 +9,18 @@ export interface GeneralSettings {
   rtmpListenPort: number;
 }
 
+export interface EachYellowPagesSettings {
+  host: string;
+  hideListeners: boolean;
+  namespace: string;
+  portBandwidthCheck: 0 | 1 | 2 | 3;
+  noLog: boolean;
+  icon: string;
+}
+
 export interface YellowPagesSettings {
-  ipv4YpHost: string;
-  ipv4YpGenrePrefix: string;
-  ipv6YpHost: string;
-  ipv6YpGenrePrefix: string;
+  ipv4: EachYellowPagesSettings;
+  ipv6: EachYellowPagesSettings;
 }
 
 export interface ChannelSettings {

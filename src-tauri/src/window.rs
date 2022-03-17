@@ -8,7 +8,10 @@ use serde_json::json;
 use tauri::{generate_context, generate_handler, AppHandle, Manager};
 use tokio::{spawn, task::JoinHandle};
 
-use crate::entities::settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings};
+use crate::entities::{
+    settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
+    yp_config::YPConfig,
+};
 
 #[async_trait]
 pub trait UiDelegate {
@@ -18,8 +21,8 @@ pub trait UiDelegate {
 }
 
 #[tauri::command]
-fn initial_settings(state: tauri::State<'_, WindowState>) -> Settings {
-    state.initial_settings.clone()
+fn initial_data(state: tauri::State<'_, WindowState>) -> (Vec<YPConfig>, Settings) {
+    (state.yp_configs.clone(), state.initial_settings.clone())
 }
 
 #[tauri::command]
@@ -69,20 +72,23 @@ async fn set_channel_settings(
 }
 
 struct WindowState {
+    yp_configs: Vec<YPConfig>,
     initial_settings: Settings,
     delegate: Weak<dyn UiDelegate + Send + Sync>,
 }
 
 pub struct Window {
     app_handle: Arc<Mutex<Option<AppHandle>>>,
+    yp_configs: Option<Vec<YPConfig>>,
     initial_settings: Option<Settings>,
     delegate: Option<Weak<dyn UiDelegate + Send + Sync>>,
 }
 
 impl Window {
-    pub fn new(initial_settings: Settings) -> Self {
+    pub fn new(yp_configs: Vec<YPConfig>, initial_settings: Settings) -> Self {
         Self {
             app_handle: Arc::new(Mutex::new(None)),
+            yp_configs: Some(yp_configs),
             initial_settings: Some(initial_settings),
             delegate: None,
         }
@@ -93,16 +99,18 @@ impl Window {
     }
 
     pub fn run(&mut self) -> JoinHandle<()> {
+        let yp_configs = replace(&mut self.yp_configs, None).unwrap();
         let settings = replace(&mut self.initial_settings, None).unwrap();
         let delegate = replace(&mut self.delegate, None).unwrap();
         spawn(async move {
             let app = tauri::Builder::default()
                 .manage(WindowState {
+                    yp_configs,
                     initial_settings: settings,
                     delegate,
                 })
                 .invoke_handler(generate_handler![
-                    initial_settings,
+                    initial_data,
                     set_general_settings,
                     set_yellow_pages_settings,
                     set_channel_settings,

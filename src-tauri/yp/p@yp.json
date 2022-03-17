@@ -1,0 +1,8 @@
+{
+  "name": "p@ YP",
+  "termsURL": "https://p-at.net/terms",
+  "host": "root.p-at.net",
+  "supportIpv6": true,
+  "prefixHeader": "pp",
+  "supportedParams": ["hide_listeners"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "YPv6",
+  "termsURL": "http://ypv6.pecastation.org/",
+  "host": "ypv6.pecastation.org",
+  "supportIpv6": true,
+  "prefixHeader": "",
+  "supportedParams": []
+}

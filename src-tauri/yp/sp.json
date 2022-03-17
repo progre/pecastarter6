@@ -1,0 +1,8 @@
+{
+  "name": "SP",
+  "termsURL": "http://bayonet.ddo.jp/sp/notice.html",
+  "host": "bayonet.ddo.jp:7146",
+  "supportIpv6": false,
+  "prefixHeader": "sp",
+  "supportedParams": ["hide_listeners", "namespace", "port_bandwidth_check"]
+}

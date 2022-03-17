@@ -13,6 +13,7 @@ export default function TextField(props: {
   min?: InputHTMLAttributes<never>['min'];
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
   value?: string | number;
   history?: readonly string[];
   fitContent?: boolean;
@@ -30,7 +31,14 @@ export default function TextField(props: {
         flex-direction: column;
       `}
     >
-      <label htmlFor={inputId}>{props.label}</label>
+      <label
+        htmlFor={inputId}
+        css={css`
+          color: ${props.disabled ? 'lightgray' : 'inherit'};
+        `}
+      >
+        {props.label}
+      </label>
       <div
         css={css`
           display: flex;
@@ -45,6 +53,7 @@ export default function TextField(props: {
           required={props.required}
           min={props.min}
           max={props.max}
+          disabled={props.disabled}
           style={props.fitContent ? { width: 'fit-content' } : {}}
           onChange={(e) => {
             props.onChangeValue?.(e.target.value);

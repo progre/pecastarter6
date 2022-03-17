@@ -13,6 +13,7 @@ pub trait RtmpListenerDelegate {
 
 pub struct RtmpListener {
     delegate: Option<Weak<dyn RtmpListenerDelegate + Send + Sync>>,
+    port: Option<NonZeroU16>,
     listener_handle: Option<JoinHandle<()>>,
 }
 
@@ -20,6 +21,7 @@ impl RtmpListener {
     pub fn new() -> Self {
         Self {
             delegate: None,
+            port: None,
             listener_handle: None,
         }
     }
@@ -28,12 +30,22 @@ impl RtmpListener {
         self.delegate = Some(delegate);
     }
 
-    pub fn spawn_listener(&mut self, rtmp_listen_port: NonZeroU16) {
+    pub fn port(&self) -> Option<NonZeroU16> {
+        self.port
+    }
+
+    pub fn stop_listener(&mut self) {
         if let Some(listener_handle) = &self.listener_handle {
             listener_handle.abort();
             self.listener_handle = None;
+            self.port = None;
         }
+    }
+
+    pub fn spawn_listener(&mut self, rtmp_listen_port: NonZeroU16) {
+        assert!(self.listener_handle.is_none());
         let delegate = self.delegate.clone().unwrap();
+        self.port = Some(rtmp_listen_port);
         self.listener_handle = Some(spawn(async move {
             let rtmp_listen_host = format!("0.0.0.0:{}", rtmp_listen_port);
             let listener = TcpListener::bind(&rtmp_listen_host).await.unwrap();

@@ -1,15 +1,24 @@
+import { invoke } from '@tauri-apps/api';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import { invoke } from '@tauri-apps/api';
 import Settings from './entities/Settings';
+import YPConfig from './entities/YPConfig';
+import App from './App';
 
-invoke('initial_settings').then((settings) => {
+import './index.css';
+
+async function main() {
+  const [ypConfigs, settings] = await invoke('initial_data');
+
   ReactDOM.render(
     <React.StrictMode>
-      <App settings={settings as Settings} />
+      <App
+        ypConfigs={ypConfigs as readonly YPConfig[]}
+        settings={settings as Settings}
+      />
     </React.StrictMode>,
     document.getElementById('root')
   );
-});
+}
+
+main();

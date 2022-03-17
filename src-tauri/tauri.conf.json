@@ -15,7 +15,7 @@
       "targets": "all",
       "identifier": "net.prgrssv.pecastarter",
       "icon": ["icons/icon.ico"],
-      "resources": [],
+      "resources": ["yp/"],
       "externalBin": [],
       "copyright": "Progre",
       "category": "DeveloperTool",

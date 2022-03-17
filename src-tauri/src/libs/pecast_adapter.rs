@@ -57,19 +57,22 @@ impl PeCaStAdapter {
             error!("Result is not array.");
             Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
         })?;
-        let mut iter = list.iter().map(|yp| {
-            let obj = yp.as_object()?;
-            Some((
-                obj.get("yellowPageId")?.as_i64()? as i32,
-                obj.get("uri")?.as_str()?.to_owned(),
-            ))
-        });
-        if iter.any(|x| x.is_none()) {
+        let list: Vec<_> = list
+            .iter()
+            .map(|yp| {
+                let obj = yp.as_object()?;
+                Some((
+                    obj.get("yellowPageId")?.as_i64()? as i32,
+                    obj.get("uri")?.as_str()?.to_owned(),
+                ))
+            })
+            .collect();
+        if list.iter().any(|x| x.is_none()) {
             return Err(Failure::Fatal(
                 "Failure communicating with PeerCastStation.".to_owned(),
             ));
         }
-        Ok(iter.map(|x| x.unwrap()).collect())
+        Ok(list.into_iter().map(|x| x.unwrap()).collect())
     }
 
     pub async fn add_yellow_page(

@@ -46,11 +46,20 @@ impl Default for GeneralSettings {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EachYellowPagesSettings {
+    pub host: String,
+    pub hide_listeners: bool,
+    pub namespace: String,
+    pub port_bandwidth_check: u8,
+    pub no_log: bool,
+    pub icon: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct YellowPagesSettings {
-    pub ipv4_yp_host: String,
-    pub ipv4_yp_genre_prefix: String,
-    pub ipv6_yp_host: String,
-    pub ipv6_yp_genre_prefix: String,
+    pub ipv4: EachYellowPagesSettings,
+    pub ipv6: EachYellowPagesSettings,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
