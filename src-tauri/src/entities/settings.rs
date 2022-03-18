@@ -7,7 +7,7 @@ use tauri::{
     api::{dialog, path},
     generate_context,
 };
-use tokio::fs::{read_to_string, write};
+use tokio::fs::{create_dir, read_to_string, write};
 
 static APP_DIR: Lazy<PathBuf> = Lazy::new(|| {
     let context = generate_context!();
@@ -132,6 +132,11 @@ impl Settings {
     }
 
     pub async fn save(&self) {
+        if let Err(err) = create_dir(APP_DIR.as_path()).await {
+            if err.kind() != ErrorKind::AlreadyExists {
+                panic!("{:?}", err);
+            }
+        }
         let opt = write(
             APP_DIR.join("settings.json"),
             serde_json::to_string_pretty(self).unwrap(),

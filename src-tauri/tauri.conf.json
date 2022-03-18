@@ -13,7 +13,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "net.prgrssv.pecastarter",
+      "identifier": "PeCa Starter",
       "icon": ["icons/icon.ico"],
       "resources": ["yp/"],
       "externalBin": [],
