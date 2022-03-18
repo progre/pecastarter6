@@ -21,6 +21,7 @@ export interface EachYellowPagesSettings {
 export interface YellowPagesSettings {
   ipv4: EachYellowPagesSettings;
   ipv6: EachYellowPagesSettings;
+  agreedTerms: { [url: string]: string };
 }
 
 export interface ChannelSettings {

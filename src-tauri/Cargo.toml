@@ -22,7 +22,8 @@ regex = "1.5"
 reqwest = { version = "0.11", features = ["json"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.0.0-rc.2", features = ["notification-all"] }
+sha2 = "0.10.2"
+tauri = { version = "1.0.0-rc.2", features = ["notification-all", "shell-open"] }
 tokio = { version = "1.17", features = ["macros", "net", "rt", "sync"] }
 
 [features]

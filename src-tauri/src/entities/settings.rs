@@ -1,4 +1,4 @@
-use std::{io::ErrorKind, num::NonZeroU16, path::PathBuf};
+use std::{collections::HashMap, io::ErrorKind, num::NonZeroU16, path::PathBuf};
 
 use log::error;
 use once_cell::sync::Lazy;
@@ -60,6 +60,7 @@ pub struct EachYellowPagesSettings {
 pub struct YellowPagesSettings {
     pub ipv4: EachYellowPagesSettings,
     pub ipv6: EachYellowPagesSettings,
+    pub agreed_terms: HashMap<String, String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

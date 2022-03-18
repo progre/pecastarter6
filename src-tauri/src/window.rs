@@ -5,6 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use tauri::{generate_context, generate_handler, AppHandle, Manager};
 use tokio::{spawn, task::JoinHandle};
 
@@ -18,6 +19,22 @@ pub trait UiDelegate {
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings);
+}
+
+#[tauri::command]
+async fn fetch_hash(url: String) -> Result<String, String> {
+    let res = reqwest::get(&url).await.map_err(|err| err.to_string())?;
+
+    let mut hasher = Sha256::new();
+    hasher.update(res.bytes().await.map_err(|err| err.to_string())?);
+    let result = hasher.finalize();
+    let hash = result
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join("");
+
+    Ok(hash)
 }
 
 #[tauri::command]
@@ -110,6 +127,7 @@ impl Window {
                     delegate,
                 })
                 .invoke_handler(generate_handler![
+                    fetch_hash,
                     initial_data,
                     set_general_settings,
                     set_yellow_pages_settings,

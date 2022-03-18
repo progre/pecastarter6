@@ -1,30 +1,39 @@
 import { css } from '@emotion/react';
 import { invoke } from '@tauri-apps/api';
+import { open } from '@tauri-apps/api/shell';
 import { useState } from 'react';
 import {
   EachYellowPagesSettings,
   YellowPagesSettings as Settings,
 } from '../entities/Settings';
 import YPConfig from '../entities/YPConfig';
+import TermsCheckbox from './molecules/TermsCheckbox';
 import YellowPagesPrefixBuilder from './molecules/YellowPagesPrefixBuilder';
+import YPConflictWarning from './molecules/YPConflictWarning';
+import YPSelect from './molecules/YPSelect';
 
 function EachYellowPagesSettingsView({
   protocol,
   ypConfigs,
   usedHostForIPV4,
+  agreedTerms,
   value,
   onChange,
+  onChangeAgreeTerms,
 }: {
   protocol: 'IPv4' | 'IPv6';
   ypConfigs: readonly YPConfig[];
   usedHostForIPV4?: string;
+  agreedTerms: { [url: string]: string };
   value: EachYellowPagesSettings;
   onChange(value: EachYellowPagesSettings): void;
-}) {
+  onChangeAgreeTerms(url: string, hash: string | null): void;
+}): JSX.Element {
   const id = `_${(Math.random() * Number.MAX_SAFE_INTEGER) | 0}`;
   const currentYPConfig = ypConfigs.find((x) => x.host === value.host);
   const conflict =
     currentYPConfig != null && currentYPConfig.host === usedHostForIPV4;
+  const [readedTerms, setReadedTerms] = useState<string | null>();
   return (
     <div
       css={css`
@@ -53,64 +62,39 @@ function EachYellowPagesSettingsView({
           >
             {protocol} 掲載 YP:
           </label>
-          <select
+          <YPSelect
             id={id}
-            css={css`
-              flex-grow: 1;
-              color: ${!conflict ? 'inherit' : '#ff2800'};
-            `}
-            value={ypConfigs.findIndex((x) => x.host === value.host)}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                host: ypConfigs[Number(e.target.value)]?.host ?? '',
-              })
-            }
-          >
-            <option
-              value={-1}
-              css={css`
-                color: initial;
-              `}
-            >
-              掲載しない
-            </option>
-            {ypConfigs.map((x, i) => (
-              <option
-                key={i}
-                value={i}
-                css={css`
-                  color: ${x.host !== usedHostForIPV4 ? 'initial' : '#ff2800'};
-                `}
-              >
-                {x.name}
-              </option>
-            ))}
-          </select>
+            ypConfigs={ypConfigs}
+            usedHostForIPV4={usedHostForIPV4}
+            conflict={conflict}
+            host={value.host}
+            onChange={(host) => {
+              setReadedTerms(null);
+              onChange({ ...value, host });
+            }}
+          />
         </div>
-        {!conflict ? null : (
-          <span
-            css={css`
-              background-color: white;
-              border: 1px solid gray;
-              padding: 4px;
-              margin-right: 8px;
-              position: absolute;
-              font-weight: bold;
-            `}
-          >
-            IPv4 と同じ YP を指定すると
-            <span
-              css={css`
-                white-space: nowrap;
-              `}
-            >
-              チャンネル
-            </span>
-            を掲載できません
-          </span>
-        )}
+        {!conflict ? null : <YPConflictWarning />}
       </div>
+      <TermsCheckbox
+        termsURL={currentYPConfig?.termsURL ?? null}
+        readed={readedTerms != null}
+        agreed={agreedTerms[currentYPConfig?.termsURL ?? ''] != null}
+        onClickReadTerms={async () => {
+          const termsURL = currentYPConfig?.termsURL ?? '';
+          open(termsURL);
+          const termsHash: string = await invoke('fetch_hash', {
+            url: termsURL,
+          });
+          setReadedTerms(termsHash);
+        }}
+        onChangeAgreeTerms={(value) =>
+          onChangeAgreeTerms(
+            currentYPConfig?.termsURL ?? '',
+            value ? readedTerms!! : null
+          )
+        }
+      />
       <YellowPagesPrefixBuilder
         config={currentYPConfig ?? null}
         value={value}
@@ -148,15 +132,33 @@ export default function YellowPagesSettings(props: {
       <EachYellowPagesSettingsView
         protocol="IPv4"
         ypConfigs={props.ypConfigs}
+        agreedTerms={settings.agreedTerms}
         value={settings.ipv4}
         onChange={(ipv4) => update({ ipv4 })}
+        onChangeAgreeTerms={(url, hash) =>
+          update({
+            agreedTerms: {
+              ...settings.agreedTerms,
+              [url]: hash ?? undefined!!,
+            },
+          })
+        }
       />
       <EachYellowPagesSettingsView
         protocol="IPv6"
         ypConfigs={props.ypConfigs}
         usedHostForIPV4={settings.ipv4.host}
+        agreedTerms={settings.agreedTerms}
         value={settings.ipv6}
         onChange={(ipv6) => update({ ipv6 })}
+        onChangeAgreeTerms={(url, hash) =>
+          update({
+            agreedTerms: {
+              ...settings.agreedTerms,
+              [url]: hash ?? undefined!!,
+            },
+          })
+        }
       />
     </div>
   );
