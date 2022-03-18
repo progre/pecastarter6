@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api';
 import { Event } from '@tauri-apps/api/event';
 import { useEffect, useState } from 'react';
 import Notification from './components/molecules/Notification';
@@ -11,7 +12,7 @@ import listenWrapped from './utils/listenWrapped';
 
 export default function App(props: {
   ypConfigs: readonly YPConfig[];
-  settings: Settings;
+  defaultSettings: Settings;
 }) {
   const [notifications, setNotifications] = useState<
     readonly {
@@ -19,16 +20,24 @@ export default function App(props: {
       message: string;
     }[]
   >([]);
+  const [settings, setSettings] = useState(props.defaultSettings);
 
   useEffect(() => {
-    const promise = listenWrapped(
+    const notifyPromise = listenWrapped(
       'notify',
       (ev: Event<{ level: string; message: string }>) => {
         setNotifications((notifications) => [...notifications, ev.payload]);
       }
     );
+    const pushSettingsPromise = listenWrapped(
+      'push_settings',
+      (ev: Event<Settings>) => {
+        setSettings(ev.payload);
+      }
+    );
     return () => {
-      promise.then((unlistenFn) => unlistenFn());
+      notifyPromise.then((unlistenFn) => unlistenFn());
+      pushSettingsPromise.then((unlistenFn) => unlistenFn());
     };
   }, []);
 
@@ -36,16 +45,24 @@ export default function App(props: {
     <>
       <TabContainer>
         <TabContent label="基本設定">
-          <GeneralSettings defaultSettings={props.settings.generalSettings} />
+          <GeneralSettings defaultSettings={settings.generalSettings} />
         </TabContent>
         <TabContent label="YP 設定">
           <YellowPagesSettings
             ypConfigs={props.ypConfigs}
-            defaultSettings={props.settings.yellowPagesSettings}
+            settings={settings.yellowPagesSettings}
+            onChange={(yellowPagesSettings) =>
+              setSettings((settings) => ({ ...settings, yellowPagesSettings }))
+            }
+            onBlur={() => {
+              invoke('set_yellow_pages_settings', {
+                yellowPagesSettings: settings.yellowPagesSettings,
+              });
+            }}
           />
         </TabContent>
         <TabContent label="チャンネル情報">
-          <ChannelSettings defaultSettings={props.settings.channelSettings} />
+          <ChannelSettings defaultSettings={settings.channelSettings} />
         </TabContent>
       </TabContainer>
       {notifications.length === 0 ? null : (

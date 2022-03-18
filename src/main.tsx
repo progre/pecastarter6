@@ -14,7 +14,7 @@ async function main() {
     <React.StrictMode>
       <App
         ypConfigs={ypConfigs as readonly YPConfig[]}
-        settings={settings as Settings}
+        defaultSettings={settings as Settings}
       />
     </React.StrictMode>,
     document.getElementById('root')

@@ -5,13 +5,15 @@ use std::{
 
 use async_trait::async_trait;
 use serde_json::json;
-use sha2::{Digest, Sha256};
 use tauri::{generate_context, generate_handler, AppHandle, Manager};
 use tokio::{spawn, task::JoinHandle};
 
-use crate::entities::{
-    settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
-    yp_config::YPConfig,
+use crate::{
+    entities::{
+        settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
+        yp_config::YPConfig,
+    },
+    utils,
 };
 
 #[async_trait]
@@ -23,18 +25,9 @@ pub trait UiDelegate {
 
 #[tauri::command]
 async fn fetch_hash(url: String) -> Result<String, String> {
-    let res = reqwest::get(&url).await.map_err(|err| err.to_string())?;
-
-    let mut hasher = Sha256::new();
-    hasher.update(res.bytes().await.map_err(|err| err.to_string())?);
-    let result = hasher.finalize();
-    let hash = result
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<Vec<_>>()
-        .join("");
-
-    Ok(hash)
+    utils::fetch_hash::fetch_hash(&url)
+        .await
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -119,6 +112,7 @@ impl Window {
         let yp_configs = replace(&mut self.yp_configs, None).unwrap();
         let settings = replace(&mut self.initial_settings, None).unwrap();
         let delegate = replace(&mut self.delegate, None).unwrap();
+        let app_handle = self.app_handle.clone();
         spawn(async move {
             let app = tauri::Builder::default()
                 .manage(WindowState {
@@ -136,8 +130,23 @@ impl Window {
                 .any_thread()
                 .build(generate_context!())
                 .expect("error while running tauri application");
+            *app_handle.lock().unwrap() = Some(app.handle());
             app.run(|_, _| {});
         })
+    }
+
+    pub fn push_settings(&self, settings: &Settings) {
+        self.app_handle
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .emit_all("push_settings", settings)
+            .unwrap();
+    }
+
+    pub fn notify_warn(&self, message: &str) {
+        self.notify("warn", message);
     }
 
     pub fn notify_error(&self, message: &str) {

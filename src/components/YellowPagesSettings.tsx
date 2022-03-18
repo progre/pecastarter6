@@ -1,7 +1,7 @@
 import { css } from '@emotion/react';
 import { invoke } from '@tauri-apps/api';
 import { open } from '@tauri-apps/api/shell';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   EachYellowPagesSettings,
   YellowPagesSettings as Settings,
@@ -12,15 +12,7 @@ import YellowPagesPrefixBuilder from './molecules/YellowPagesPrefixBuilder';
 import YPConflictWarning from './molecules/YPConflictWarning';
 import YPSelect from './molecules/YPSelect';
 
-function EachYellowPagesSettingsView({
-  protocol,
-  ypConfigs,
-  usedHostForIPV4,
-  agreedTerms,
-  value,
-  onChange,
-  onChangeAgreeTerms,
-}: {
+function EachYellowPagesSettingsView(props: {
   protocol: 'IPv4' | 'IPv6';
   ypConfigs: readonly YPConfig[];
   usedHostForIPV4?: string;
@@ -30,9 +22,11 @@ function EachYellowPagesSettingsView({
   onChangeAgreeTerms(url: string, hash: string | null): void;
 }): JSX.Element {
   const id = `_${(Math.random() * Number.MAX_SAFE_INTEGER) | 0}`;
-  const currentYPConfig = ypConfigs.find((x) => x.host === value.host);
+  const currentYPConfig = props.ypConfigs.find(
+    (x) => x.host === props.value.host
+  );
   const conflict =
-    currentYPConfig != null && currentYPConfig.host === usedHostForIPV4;
+    currentYPConfig != null && currentYPConfig.host === props.usedHostForIPV4;
   const [readedTerms, setReadedTerms] = useState<string | null>();
   return (
     <div
@@ -60,17 +54,17 @@ function EachYellowPagesSettingsView({
               padding-right: 0.5em;
             `}
           >
-            {protocol} 掲載 YP:
+            {props.protocol} 掲載 YP:
           </label>
           <YPSelect
             id={id}
-            ypConfigs={ypConfigs}
-            usedHostForIPV4={usedHostForIPV4}
+            ypConfigs={props.ypConfigs}
+            usedHostForIPV4={props.usedHostForIPV4}
             conflict={conflict}
-            host={value.host}
+            host={props.value.host}
             onChange={(host) => {
               setReadedTerms(null);
-              onChange({ ...value, host });
+              props.onChange({ ...props.value, host });
             }}
           />
         </div>
@@ -79,7 +73,7 @@ function EachYellowPagesSettingsView({
       <TermsCheckbox
         termsURL={currentYPConfig?.termsURL ?? null}
         readed={readedTerms != null}
-        agreed={agreedTerms[currentYPConfig?.termsURL ?? ''] != null}
+        agreed={props.agreedTerms[currentYPConfig?.termsURL ?? ''] != null}
         onClickReadTerms={async () => {
           const termsURL = currentYPConfig?.termsURL ?? '';
           open(termsURL);
@@ -89,7 +83,7 @@ function EachYellowPagesSettingsView({
           setReadedTerms(termsHash);
         }}
         onChangeAgreeTerms={(value) =>
-          onChangeAgreeTerms(
+          props.onChangeAgreeTerms(
             currentYPConfig?.termsURL ?? '',
             value ? readedTerms!! : null
           )
@@ -97,8 +91,8 @@ function EachYellowPagesSettingsView({
       />
       <YellowPagesPrefixBuilder
         config={currentYPConfig ?? null}
-        value={value}
-        onChange={onChange}
+        value={props.value}
+        onChange={props.onChange}
       />
     </div>
   );
@@ -106,18 +100,12 @@ function EachYellowPagesSettingsView({
 
 export default function YellowPagesSettings(props: {
   ypConfigs: readonly YPConfig[];
-  defaultSettings: Settings;
+  settings: Settings;
+  onChange(value: Settings): void;
+  onBlur(): void;
 }) {
-  const [settings, setSettings] = useState(props.defaultSettings);
-
-  const onBlur = () => {
-    invoke('set_yellow_pages_settings', {
-      yellowPagesSettings: settings,
-    });
-  };
-
   const update = (newSettings: Partial<Settings>) => {
-    setSettings((settings) => ({ ...settings, ...newSettings }));
+    props.onChange({ ...props.settings, ...newSettings });
   };
 
   return (
@@ -127,18 +115,18 @@ export default function YellowPagesSettings(props: {
         gap: 16px;
         flex-wrap: wrap;
       `}
-      onBlur={onBlur}
+      onBlur={props.onBlur}
     >
       <EachYellowPagesSettingsView
         protocol="IPv4"
         ypConfigs={props.ypConfigs}
-        agreedTerms={settings.agreedTerms}
-        value={settings.ipv4}
+        agreedTerms={props.settings.agreedTerms}
+        value={props.settings.ipv4}
         onChange={(ipv4) => update({ ipv4 })}
         onChangeAgreeTerms={(url, hash) =>
           update({
             agreedTerms: {
-              ...settings.agreedTerms,
+              ...props.settings.agreedTerms,
               [url]: hash ?? undefined!!,
             },
           })
@@ -147,14 +135,14 @@ export default function YellowPagesSettings(props: {
       <EachYellowPagesSettingsView
         protocol="IPv6"
         ypConfigs={props.ypConfigs}
-        usedHostForIPV4={settings.ipv4.host}
-        agreedTerms={settings.agreedTerms}
-        value={settings.ipv6}
+        usedHostForIPV4={props.settings.ipv4.host}
+        agreedTerms={props.settings.agreedTerms}
+        value={props.settings.ipv6}
         onChange={(ipv6) => update({ ipv6 })}
         onChangeAgreeTerms={(url, hash) =>
           update({
             agreedTerms: {
-              ...settings.agreedTerms,
+              ...props.settings.agreedTerms,
               [url]: hash ?? undefined!!,
             },
           })
