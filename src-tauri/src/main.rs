@@ -9,7 +9,6 @@ mod app;
 mod entities;
 mod failure;
 mod features;
-mod libs;
 mod utils;
 mod window;
 

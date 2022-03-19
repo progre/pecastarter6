@@ -15,13 +15,13 @@ use crate::{
     },
     failure::Failure,
     features::{
+        peercast::broadcasting::Broadcasting,
         rtmp::{rtmp_server::RtmpServer, RtmpListenerDelegate},
         terms_check::check_expired_terms,
     },
-    libs::broadcasting::Broadcasting,
     utils::{
         read_yp_configs::read_yp_configs_and_show_dialog_if_error,
-        tcp::{connect, find_free_port, pipe},
+        tcp::{connect, pipe},
     },
     window::{UiDelegate, Window},
 };
@@ -29,40 +29,36 @@ use crate::{
 #[derive(Clone)]
 pub struct App {
     yp_configs: Vec<YPConfig>,
-    rtmp_server: Arc<Mutex<RtmpServer>>,
-    window: Arc<Mutex<Window>>,
-    broadcasting: Arc<Mutex<Broadcasting>>,
     settings: Arc<Mutex<Settings>>,
+    window: Arc<Mutex<Window>>,
+    rtmp_server: Arc<Mutex<RtmpServer>>,
+    broadcasting: Arc<Mutex<Broadcasting>>,
 }
 
 impl App {
     pub async fn run() {
         let yp_configs = read_yp_configs_and_show_dialog_if_error().await;
-
         let settings = Arc::new(Mutex::new(Settings::load().await));
-        let rtmp_server = Arc::new(Mutex::new(RtmpServer::new()));
         let window = Arc::new(Mutex::new(Window::new(
             yp_configs.clone(),
             settings.lock().await.clone(),
         )));
-        let broadcasting = Arc::new(Mutex::new(Broadcasting::new()));
 
         let zelf = Arc::new(Self {
             yp_configs,
-            rtmp_server,
-            window,
-            broadcasting,
             settings,
+            window,
+            rtmp_server: Arc::new(Mutex::new(RtmpServer::new())),
+            broadcasting: Arc::new(Mutex::new(Broadcasting::new())),
         });
         let weak = Arc::downgrade(&zelf);
         zelf.window.lock().await.set_delegate(weak);
-        {
-            let weak = Arc::downgrade(&zelf);
-            let mut rtmp_server = zelf.rtmp_server.lock().await;
-            rtmp_server.set_delegate(weak);
-            rtmp_server
-                .listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
-        }
+
+        let weak = Arc::downgrade(&zelf);
+        let mut rtmp_server = zelf.rtmp_server.lock().await;
+        rtmp_server.set_delegate(weak);
+        rtmp_server.listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
+
         let window_join_handle = zelf.window.lock().await.run();
         window_join_handle.await.unwrap();
     }
@@ -95,6 +91,7 @@ unsafe impl Send for App {}
 unsafe impl Sync for App {}
 
 fn notify_failure(window: MutexGuard<Window>, failure: &Failure) {
+    error!("{:?}", failure);
     match failure {
         Failure::Warn(message) => {
             window.notify_error(message);
@@ -130,7 +127,6 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                error!("{:?}", err);
                 notify_failure(self.window.lock().await, &err);
                 return;
             }
@@ -154,7 +150,6 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                error!("{:?}", err);
                 notify_failure(self.window.lock().await, &err);
                 return;
             }
@@ -173,7 +168,6 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                error!("{:?}", err);
                 notify_failure(self.window.lock().await, &err);
                 return;
             }
@@ -190,35 +184,34 @@ impl RtmpListenerDelegate for App {
             return;
         }
 
-        let rtmp_conn_port = find_free_port().await.unwrap();
-        {
+        let rtmp_conn_port = {
             let mut broadcasting = self.broadcasting.lock().await;
             let settings = self.settings.lock().await;
-            let res = broadcasting
-                .broadcast(rtmp_conn_port, &self.yp_configs, &settings)
-                .await;
-            if let Some(err) = res.err() {
-                error!("{:?}", err);
-                notify_failure(self.window.lock().await, &err);
-                return;
+            match broadcasting.broadcast(&self.yp_configs, &settings).await {
+                Ok(ok) => ok,
+                Err(err) => {
+                    notify_failure(self.window.lock().await, &err);
+                    return;
+                }
             }
-        }
+        };
 
-        let rtmp_conn_host = format!("localhost:{}", rtmp_conn_port);
-        let outgoing = connect(&rtmp_conn_host).await;
-        pipe(incoming, outgoing).await;
+        let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
+        pipe(incoming, outgoing).await; // long long awaiting
 
         {
             let mut broadcasting = self.broadcasting.lock().await;
             let settings = self.settings.lock().await;
-            let res = broadcasting
+            match broadcasting
                 .stop(settings.general_settings.peer_cast_port)
-                .await;
-            if let Some(err) = res.err() {
-                error!("{:?}", err);
-                notify_failure(self.window.lock().await, &err);
-                return;
+                .await
+            {
+                Ok(_) => {}
+                Err(err) => {
+                    notify_failure(self.window.lock().await, &err);
+                    return;
+                }
             }
-        }
+        };
     }
 }

@@ -8,11 +8,11 @@ use crate::{
         yp_config::YPConfig,
     },
     failure::Failure,
-    libs::{
+    features::peercast::{
         channel_utils::{find_id, info, ipv6_channel_name, loopback, rtmp_source},
         pecast_adapter::{Info, PeCaStAdapter, Track},
     },
-    utils::genre_parser,
+    utils::{genre_parser, tcp::find_free_port},
 };
 
 const EMPTY_TRACK: Track = Track {
@@ -111,10 +111,11 @@ impl Broadcasting {
 
     pub async fn broadcast(
         &mut self,
-        rtmp_conn_port: NonZeroU16,
         yp_configs: &[YPConfig],
         settings: &Settings,
-    ) -> Result<(), Failure> {
+    ) -> Result<NonZeroU16, Failure> {
+        let rtmp_conn_port = find_free_port().await.unwrap();
+
         let adapter = PeCaStAdapter::new(settings.general_settings.peer_cast_port);
         let (ipv4_yp_id, ipv6_yp_id) =
             prepare_yellow_pages(&adapter, &settings.yellow_pages_settings).await?;
@@ -138,7 +139,7 @@ impl Broadcasting {
             let info = info(ipv4_channel_name, &genre, &settings.channel_settings);
             self.ipv4_id = Some(broadcast(&adapter, ipv4_yp_id, &stream, "ipv4", &info).await?);
         }
-        Ok(())
+        Ok(rtmp_conn_port)
     }
 
     pub async fn update(
