@@ -60,6 +60,7 @@ impl App {
             rtmp_listener.set_delegate(weak);
             Self::listen_rtmp_if_need(
                 rtmp_listener.deref_mut(),
+                &zelf.yp_configs,
                 zelf.settings.lock().await.deref_mut(),
             );
         }
@@ -67,25 +68,44 @@ impl App {
         window_join_handle.await.unwrap();
     }
 
-    fn listen_rtmp_if_need(rtmp_listener: &mut RtmpListener, settings: &Settings) {
-        let running = rtmp_listener.port().is_some();
-        let no_yp = settings.yellow_pages_settings.ipv4.host.is_empty()
-            && settings.yellow_pages_settings.ipv6.host.is_empty();
-        let changed_port = rtmp_listener.port().is_some()
-            && rtmp_listener.port() != Some(settings.general_settings.rtmp_listen_port);
-        if running && !changed_port {
-            log::trace!("no change");
-            return;
-        }
-        if running {
-            log::trace!("stop_listener");
+    fn listen_rtmp_if_need(
+        rtmp_listener: &mut RtmpListener,
+        yp_configs: &[YPConfig],
+        settings: &Settings,
+    ) {
+        let hosts = [
+            &settings.yellow_pages_settings.ipv4.host,
+            &settings.yellow_pages_settings.ipv6.host,
+        ];
+        let has_yp = hosts.iter().any(|host| !host.is_empty());
+        let agreed_all_terms = hosts
+            .into_iter()
+            .map(|host| yp_configs.iter().find(|config| &config.host == host))
+            .flatten()
+            .map(|config| &config.terms_url)
+            .all(|terms_url| {
+                settings
+                    .yellow_pages_settings
+                    .agreed_terms
+                    .contains_key(terms_url)
+            });
+
+        let should_listen = has_yp && agreed_all_terms;
+        if should_listen {
+            let equals_running_port =
+                rtmp_listener.port() == Some(settings.general_settings.rtmp_listen_port);
+            if equals_running_port {
+                return;
+            }
+            rtmp_listener.stop_listener();
+            rtmp_listener.spawn_listener(settings.general_settings.rtmp_listen_port);
+        } else {
+            let running = rtmp_listener.port().is_some();
+            if !running {
+                return;
+            }
             rtmp_listener.stop_listener();
         }
-        if no_yp {
-            log::trace!("no wakeup");
-            return;
-        }
-        rtmp_listener.spawn_listener(settings.general_settings.rtmp_listen_port);
     }
 
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
@@ -142,7 +162,11 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.general_settings = general_settings;
 
-        Self::listen_rtmp_if_need(self.rtmp_listener.lock().await.deref_mut(), &settings);
+        Self::listen_rtmp_if_need(
+            self.rtmp_listener.lock().await.deref_mut(),
+            &self.yp_configs,
+            &settings,
+        );
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
@@ -163,7 +187,11 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.yellow_pages_settings = yellow_pages_settings;
 
-        Self::listen_rtmp_if_need(self.rtmp_listener.lock().await.deref_mut(), &settings);
+        Self::listen_rtmp_if_need(
+            self.rtmp_listener.lock().await.deref_mut(),
+            &self.yp_configs,
+            &settings,
+        );
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
