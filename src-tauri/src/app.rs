@@ -14,10 +14,10 @@ use crate::{
         yp_config::YPConfig,
     },
     failure::Failure,
+    features::terms_check::check_expired_terms,
     libs::broadcasting::Broadcasting,
     rtmp_listener::{RtmpListener, RtmpListenerDelegate},
     utils::{
-        fetch_hash::fetch_hash,
         read_yp_configs::read_yp_configs_and_show_dialog_if_error,
         tcp::{connect, find_free_port, pipe},
     },
@@ -88,62 +88,27 @@ impl App {
         rtmp_listener.spawn_listener(settings.general_settings.rtmp_listen_port);
     }
 
-    async fn expired_yp_terms<'a>(
-        yp_configs: &'a [YPConfig],
-        settings: &Settings,
-    ) -> anyhow::Result<Vec<&'a str>> {
-        let hosts = [
-            &settings.yellow_pages_settings.ipv4.host,
-            &settings.yellow_pages_settings.ipv6.host,
-        ];
-        let yp_terms_urls = hosts
-            .into_iter()
-            .filter(|host| !host.is_empty())
-            .map(|host| yp_configs.iter().find(|x| &x.host == host).unwrap())
-            .filter(|yp_config| !yp_config.ignore_terms_check)
-            .map(|yp_config| &yp_config.terms_url as &str)
-            .collect::<Vec<_>>();
-        let mut terms_hashes = Vec::new();
-        for yp_terms_url in yp_terms_urls {
-            terms_hashes.push((yp_terms_url, fetch_hash(yp_terms_url).await?));
-        }
-        let updated_terms = terms_hashes
-            .into_iter()
-            .filter(|(url, hash)| {
-                settings.yellow_pages_settings.agreed_terms.get(*url) != Some(hash)
-            })
-            .map(|(url, _)| url)
-            .collect::<Vec<_>>();
-        Ok(updated_terms)
-    }
-
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
         let mut settings = self.settings.lock().await;
-        let expired_yp_terms = match Self::expired_yp_terms(&self.yp_configs, &settings).await {
-            Ok(ok) => ok,
+        match check_expired_terms(&self.yp_configs, &mut settings).await {
+            Ok(true) => true,
+            Ok(false) => {
+                let window = self.window.lock().await;
+                window.push_settings(&settings);
+                window.notify_error("YP の利用規約が変更されました。再度確認してください。");
+
+                false
+            }
             Err(e) => {
                 warn!("{}", e);
                 self.window
                     .lock()
                     .await
                     .notify_warn("YP の利用規約の確認に失敗しました。");
-                return true;
+
+                true
             }
-        };
-        if expired_yp_terms.is_empty() {
-            return true;
         }
-        for url in expired_yp_terms {
-            settings.yellow_pages_settings.agreed_terms.remove(url);
-        }
-        log::trace!("{:?}", settings);
-        settings.save().await;
-
-        let window = self.window.lock().await;
-        window.push_settings(&settings);
-        window.notify_error("YP の利用規約が変更されました。再度確認してください。");
-
-        false
     }
 }
 

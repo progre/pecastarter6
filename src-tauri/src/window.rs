@@ -13,7 +13,7 @@ use crate::{
         settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
         yp_config::YPConfig,
     },
-    utils,
+    features::terms_check,
 };
 
 #[async_trait]
@@ -25,7 +25,7 @@ pub trait UiDelegate {
 
 #[tauri::command]
 async fn fetch_hash(url: String) -> Result<String, String> {
-    utils::fetch_hash::fetch_hash(&url)
+    terms_check::fetch_hash(&url)
         .await
         .map_err(|err| err.to_string())
 }

@@ -8,6 +8,7 @@ use app::App;
 mod app;
 mod entities;
 mod failure;
+mod features;
 mod libs;
 mod rtmp_listener;
 mod utils;
