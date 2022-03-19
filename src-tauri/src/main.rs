@@ -10,7 +10,6 @@ mod entities;
 mod failure;
 mod features;
 mod utils;
-mod window;
 
 #[tokio::main]
 async fn main() {

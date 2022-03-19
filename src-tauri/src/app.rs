@@ -1,8 +1,7 @@
 use std::{ops::DerefMut, sync::Arc};
 
 use async_trait::async_trait;
-use log::{error, warn};
-use tauri::api::{dialog, notification::Notification};
+use log::warn;
 use tokio::{net::TcpStream, sync::Mutex};
 
 use crate::{
@@ -15,19 +14,19 @@ use crate::{
         peercast::broadcasting::Broadcasting,
         rtmp::{rtmp_server::RtmpServer, RtmpListenerDelegate},
         terms_check::check_expired_terms,
+        ui::{Ui, UiDelegate},
     },
     utils::{
         read_yp_configs::read_yp_configs_and_show_dialog_if_error,
         tcp::{connect, pipe},
     },
-    window::{UiDelegate, Window},
 };
 
 #[derive(Clone)]
 pub struct App {
     yp_configs: Vec<YPConfig>,
     settings: Arc<Mutex<Settings>>,
-    window: Arc<Mutex<Window>>,
+    ui: Arc<Mutex<Ui>>,
     rtmp_server: Arc<Mutex<RtmpServer>>,
     broadcasting: Arc<Mutex<Broadcasting>>,
 }
@@ -37,7 +36,7 @@ impl App {
         Self {
             yp_configs: read_yp_configs_and_show_dialog_if_error().await,
             settings: Arc::new(Mutex::new(Settings::load().await)),
-            window: Arc::new(Mutex::new(Window::new())),
+            ui: Arc::new(Mutex::new(Ui::new())),
             rtmp_server: Arc::new(Mutex::new(RtmpServer::new())),
             broadcasting: Arc::new(Mutex::new(Broadcasting::new())),
         }
@@ -48,7 +47,7 @@ impl App {
 
         {
             let weak = Arc::downgrade(&zelf);
-            zelf.window.lock().await.set_delegate(weak);
+            zelf.ui.lock().await.set_delegate(weak);
         }
 
         {
@@ -59,7 +58,7 @@ impl App {
                 .listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
         }
 
-        zelf.window.lock().await.run().await.unwrap(); // long long awaiting
+        zelf.ui.lock().await.run().await.unwrap(); // long long awaiting
     }
 
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
@@ -67,40 +66,16 @@ impl App {
         match check_expired_terms(&self.yp_configs, &mut settings).await {
             Ok(true) => true,
             Ok(false) => {
-                let window = self.window.lock().await;
-                window.push_settings(&settings);
-                window.notify_error("YP の利用規約が変更されました。再度確認してください。");
+                self.ui.lock().await.reset_yp_terms(&settings);
 
                 false
             }
             Err(e) => {
                 warn!("{}", e);
-                self.window
-                    .lock()
-                    .await
-                    .notify_warn("YP の利用規約の確認に失敗しました。");
+                let warn = Failure::Warn("YP の利用規約の確認に失敗しました。".to_owned());
+                self.ui.lock().await.notify_failure(&warn).await;
 
                 true
-            }
-        }
-    }
-
-    async fn notify_failure(&self, failure: &Failure) {
-        error!("{:?}", failure);
-        match failure {
-            Failure::Warn(message) => {
-                self.window.lock().await.notify_error(message);
-            }
-            Failure::Error(message) => {
-                Notification::default()
-                    .title("Error")
-                    .body(message)
-                    .show()
-                    .unwrap();
-            }
-            Failure::Fatal(message) => {
-                let none: Option<&tauri::Window> = None;
-                dialog::blocking::message(none, "Fatal", message);
             }
         }
     }
@@ -130,7 +105,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.notify_failure(&err).await;
+                self.ui.lock().await.notify_failure(&err).await;
                 return;
             }
         }
@@ -153,7 +128,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.notify_failure(&err).await;
+                self.ui.lock().await.notify_failure(&err).await;
                 return;
             }
         }
@@ -171,7 +146,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.notify_failure(&err).await;
+                self.ui.lock().await.notify_failure(&err).await;
                 return;
             }
         }
@@ -193,7 +168,7 @@ impl RtmpListenerDelegate for App {
             match broadcasting.broadcast(&self.yp_configs, &settings).await {
                 Ok(ok) => ok,
                 Err(err) => {
-                    self.notify_failure(&err).await;
+                    self.ui.lock().await.notify_failure(&err).await;
                     return;
                 }
             }
@@ -211,7 +186,7 @@ impl RtmpListenerDelegate for App {
             {
                 Ok(_) => {}
                 Err(err) => {
-                    self.notify_failure(&err).await;
+                    self.ui.lock().await.notify_failure(&err).await;
                     return;
                 }
             }

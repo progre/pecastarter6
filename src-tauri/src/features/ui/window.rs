@@ -136,20 +136,7 @@ impl Window {
             .unwrap();
     }
 
-    pub fn notify_warn(&self, message: &str) {
-        self.notify("warn", message);
-    }
-
-    pub fn notify_error(&self, message: &str) {
-        self.notify("error", message);
-    }
-
-    #[allow(dead_code)]
-    pub fn notify_fatal(&self, message: &str) {
-        self.notify("fatal", message);
-    }
-
-    fn notify(&self, level: &str, message: &str) {
+    pub fn notify(&self, level: &str, message: &str) {
         self.app_handle
             .lock()
             .unwrap()
