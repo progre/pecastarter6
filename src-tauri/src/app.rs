@@ -92,20 +92,17 @@ impl App {
         yp_configs: &'a [YPConfig],
         settings: &Settings,
     ) -> anyhow::Result<Vec<&'a str>> {
-        let yp_terms_urls = [
+        let hosts = [
             &settings.yellow_pages_settings.ipv4.host,
             &settings.yellow_pages_settings.ipv6.host,
-        ]
-        .into_iter()
-        .filter(|x| !x.is_empty())
-        .map(|host| {
-            &yp_configs
-                .iter()
-                .find(|x| &x.host == host)
-                .unwrap()
-                .terms_url
-        })
-        .collect::<Vec<_>>();
+        ];
+        let yp_terms_urls = hosts
+            .into_iter()
+            .filter(|host| !host.is_empty())
+            .map(|host| yp_configs.iter().find(|x| &x.host == host).unwrap())
+            .filter(|yp_config| !yp_config.ignore_terms_check)
+            .map(|yp_config| &yp_config.terms_url as &str)
+            .collect::<Vec<_>>();
         let mut terms_hashes = Vec::new();
         for yp_terms_url in yp_terms_urls {
             terms_hashes.push((yp_terms_url, fetch_hash(yp_terms_url).await?));
@@ -113,9 +110,9 @@ impl App {
         let updated_terms = terms_hashes
             .into_iter()
             .filter(|(url, hash)| {
-                &settings.yellow_pages_settings.agreed_terms.get(*url) != &Some(hash)
+                settings.yellow_pages_settings.agreed_terms.get(*url) != Some(hash)
             })
-            .map(|(url, _)| url as &str)
+            .map(|(url, _)| url)
             .collect::<Vec<_>>();
         Ok(updated_terms)
     }

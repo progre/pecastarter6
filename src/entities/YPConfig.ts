@@ -8,6 +8,7 @@ export type YPConfigParam = keyof YPConfigParamTypes;
 export default interface YPConfig {
   name: string;
   termsURL: string;
+  ignoreTermsCheck: boolean;
   host: string;
   supportIpv6: boolean;
   prefixHeader: string;

@@ -89,6 +89,19 @@ function EachYellowPagesSettingsView(props: {
           )
         }
       />
+      {!(currentYPConfig?.ignoreTermsCheck === true) ? null : (
+        <div
+          css={css`
+            font-size: x-small;
+            padding: 4px;
+            margin-top: -8px;
+            background-color: #ffff99;
+          `}
+        >
+          この YP
+          は利用規約の自動確認に対応していません。規約の更新は自身で確認してください。
+        </div>
+      )}
       <YellowPagesPrefixBuilder
         config={currentYPConfig ?? null}
         value={props.value}
