@@ -12,14 +12,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - uses: Swatinem/rust-cache@v1
+        with:
+          target-dir: ./src-tauri/target
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
           node-version: '16'
       - name: Build
         run: |
-          npm ci && npm run tauri build
-          scripts/zip.mjs
+          npm ci
+          npm run tauri build
+      - name: Zip
+        run: |
+          cd scripts/zip
+          npm ci
+          cd ../..
+          node scripts/zip/index.mjs
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')

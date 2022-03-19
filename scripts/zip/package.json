@@ -1,0 +1,9 @@
+{
+  "name": "zip",
+  "version": "1.0.0",
+  "dependencies": {
+    "archiver": "^5.3.0"
+  },
+  "module": "index.mjs",
+  "private": true
+}
