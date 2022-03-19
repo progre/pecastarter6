@@ -14,9 +14,11 @@ use crate::{
         yp_config::YPConfig,
     },
     failure::Failure,
-    features::terms_check::check_expired_terms,
+    features::{
+        rtmp::{rtmp_server::RtmpServer, RtmpListenerDelegate},
+        terms_check::check_expired_terms,
+    },
     libs::broadcasting::Broadcasting,
-    rtmp_listener::{RtmpListener, RtmpListenerDelegate},
     utils::{
         read_yp_configs::read_yp_configs_and_show_dialog_if_error,
         tcp::{connect, find_free_port, pipe},
@@ -27,7 +29,7 @@ use crate::{
 #[derive(Clone)]
 pub struct App {
     yp_configs: Vec<YPConfig>,
-    rtmp_listener: Arc<Mutex<RtmpListener>>,
+    rtmp_server: Arc<Mutex<RtmpServer>>,
     window: Arc<Mutex<Window>>,
     broadcasting: Arc<Mutex<Broadcasting>>,
     settings: Arc<Mutex<Settings>>,
@@ -38,7 +40,7 @@ impl App {
         let yp_configs = read_yp_configs_and_show_dialog_if_error().await;
 
         let settings = Arc::new(Mutex::new(Settings::load().await));
-        let rtmp_listener = Arc::new(Mutex::new(RtmpListener::new()));
+        let rtmp_server = Arc::new(Mutex::new(RtmpServer::new()));
         let window = Arc::new(Mutex::new(Window::new(
             yp_configs.clone(),
             settings.lock().await.clone(),
@@ -47,7 +49,7 @@ impl App {
 
         let zelf = Arc::new(Self {
             yp_configs,
-            rtmp_listener,
+            rtmp_server,
             window,
             broadcasting,
             settings,
@@ -56,56 +58,13 @@ impl App {
         zelf.window.lock().await.set_delegate(weak);
         {
             let weak = Arc::downgrade(&zelf);
-            let mut rtmp_listener = zelf.rtmp_listener.lock().await;
-            rtmp_listener.set_delegate(weak);
-            Self::listen_rtmp_if_need(
-                rtmp_listener.deref_mut(),
-                &zelf.yp_configs,
-                zelf.settings.lock().await.deref_mut(),
-            );
+            let mut rtmp_server = zelf.rtmp_server.lock().await;
+            rtmp_server.set_delegate(weak);
+            rtmp_server
+                .listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
         }
         let window_join_handle = zelf.window.lock().await.run();
         window_join_handle.await.unwrap();
-    }
-
-    fn listen_rtmp_if_need(
-        rtmp_listener: &mut RtmpListener,
-        yp_configs: &[YPConfig],
-        settings: &Settings,
-    ) {
-        let hosts = [
-            &settings.yellow_pages_settings.ipv4.host,
-            &settings.yellow_pages_settings.ipv6.host,
-        ];
-        let has_yp = hosts.iter().any(|host| !host.is_empty());
-        let agreed_all_terms = hosts
-            .into_iter()
-            .map(|host| yp_configs.iter().find(|config| &config.host == host))
-            .flatten()
-            .map(|config| &config.terms_url)
-            .all(|terms_url| {
-                settings
-                    .yellow_pages_settings
-                    .agreed_terms
-                    .contains_key(terms_url)
-            });
-
-        let should_listen = has_yp && agreed_all_terms;
-        if should_listen {
-            let equals_running_port =
-                rtmp_listener.port() == Some(settings.general_settings.rtmp_listen_port);
-            if equals_running_port {
-                return;
-            }
-            rtmp_listener.stop_listener();
-            rtmp_listener.spawn_listener(settings.general_settings.rtmp_listen_port);
-        } else {
-            let running = rtmp_listener.port().is_some();
-            if !running {
-                return;
-            }
-            rtmp_listener.stop_listener();
-        }
     }
 
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
@@ -162,11 +121,10 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.general_settings = general_settings;
 
-        Self::listen_rtmp_if_need(
-            self.rtmp_listener.lock().await.deref_mut(),
-            &self.yp_configs,
-            &settings,
-        );
+        self.rtmp_server
+            .lock()
+            .await
+            .listen_rtmp_if_need(&self.yp_configs, &settings);
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
@@ -187,11 +145,10 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.yellow_pages_settings = yellow_pages_settings;
 
-        Self::listen_rtmp_if_need(
-            self.rtmp_listener.lock().await.deref_mut(),
-            &self.yp_configs,
-            &settings,
-        );
+        self.rtmp_server
+            .lock()
+            .await
+            .listen_rtmp_if_need(&self.yp_configs, &settings);
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
