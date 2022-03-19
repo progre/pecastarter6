@@ -9,7 +9,7 @@ use tauri::{generate_context, generate_handler, AppHandle, Manager};
 use tokio::{spawn, task::JoinHandle};
 
 use crate::{
-    entities::{
+    core::entities::{
         settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
         yp_config::YPConfig,
     },

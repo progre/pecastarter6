@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 use log::error;
 use tokio::fs::{create_dir, read_to_string, write};
 
-use crate::entities::settings::Settings;
+use crate::core::entities::settings::Settings;
 
 use super::APP_DIR;
 

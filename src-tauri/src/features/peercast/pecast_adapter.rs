@@ -5,7 +5,7 @@ use reqwest::Client;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::utils::failure::Failure;
+use crate::core::utils::failure::Failure;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

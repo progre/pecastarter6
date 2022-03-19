@@ -1,6 +1,6 @@
 use std::sync::Weak;
 
-use crate::entities::{settings::Settings, yp_config::YPConfig};
+use crate::core::entities::{settings::Settings, yp_config::YPConfig};
 
 use super::{rtmp_listener::RtmpListener, RtmpListenerDelegate};
 

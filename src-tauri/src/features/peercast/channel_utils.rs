@@ -1,6 +1,6 @@
 use std::num::NonZeroU16;
 
-use crate::{entities::settings::ChannelSettings, features::peercast::pecast_adapter::Info};
+use crate::{core::entities::settings::ChannelSettings, features::peercast::pecast_adapter::Info};
 
 pub fn find_id(yp_list: &[(i32, String)], yp_host: &str) -> Option<i32> {
     yp_list

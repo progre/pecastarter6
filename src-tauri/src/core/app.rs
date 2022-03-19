@@ -6,9 +6,15 @@ use tauri::api::dialog;
 use tokio::{net::TcpStream, sync::Mutex};
 
 use crate::{
-    entities::{
-        settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
-        yp_config::YPConfig,
+    core::{
+        entities::{
+            settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
+            yp_config::YPConfig,
+        },
+        utils::{
+            failure::Failure,
+            tcp::{connect, pipe},
+        },
     },
     features::{
         files::{
@@ -21,10 +27,6 @@ use crate::{
         rtmp::{rtmp_server::RtmpServer, RtmpListenerDelegate},
         terms_check::check_expired_terms,
         ui::{Ui, UiDelegate},
-    },
-    utils::{
-        failure::Failure,
-        tcp::{connect, pipe},
     },
 };
 

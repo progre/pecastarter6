@@ -4,7 +4,7 @@ use anyhow::Result;
 use log::error;
 use tokio::fs::{read_dir, read_to_string};
 
-use crate::entities::yp_config::YPConfig;
+use crate::core::entities::yp_config::YPConfig;
 
 use super::APP_DIR;
 

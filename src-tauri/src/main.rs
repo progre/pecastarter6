@@ -3,12 +3,10 @@
     windows_subsystem = "windows"
 )]
 
-use app::App;
-
-mod app;
-mod entities;
+mod core;
 mod features;
-mod utils;
+
+use crate::core::app::App;
 
 #[tokio::main]
 async fn main() {

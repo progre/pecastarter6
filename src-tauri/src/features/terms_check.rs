@@ -1,4 +1,4 @@
-use crate::entities::{settings::Settings, yp_config::YPConfig};
+use crate::core::entities::{settings::Settings, yp_config::YPConfig};
 
 use sha2::{Digest, Sha256};
 
