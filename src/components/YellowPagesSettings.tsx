@@ -27,7 +27,7 @@ function EachYellowPagesSettingsView(props: {
   );
   const conflict =
     currentYPConfig != null && currentYPConfig.host === props.usedHostForIPV4;
-  const [readedTerms, setReadedTerms] = useState(
+  const [readedTerms, setReadedTerms] = useState<string | null>(
     props.agreedTerms[currentYPConfig?.termsURL ?? ''] ?? null
   );
   return (
@@ -149,7 +149,7 @@ export default function YellowPagesSettings(props: {
       />
       <EachYellowPagesSettingsView
         protocol="IPv6"
-        ypConfigs={props.ypConfigs}
+        ypConfigs={props.ypConfigs.filter((x) => x.supportIpv6)}
         usedHostForIPV4={props.settings.ipv4.host}
         agreedTerms={props.settings.agreedTerms}
         value={props.settings.ipv6}
