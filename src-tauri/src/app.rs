@@ -36,7 +36,7 @@ pub struct App {
 }
 
 impl App {
-    pub async fn run() {
+    async fn new() -> Self {
         let yp_configs = read_yp_configs_and_show_dialog_if_error().await;
         let settings = Arc::new(Mutex::new(Settings::load().await));
         let window = Arc::new(Mutex::new(Window::new(
@@ -44,23 +44,32 @@ impl App {
             settings.lock().await.clone(),
         )));
 
-        let zelf = Arc::new(Self {
+        Self {
             yp_configs,
             settings,
             window,
             rtmp_server: Arc::new(Mutex::new(RtmpServer::new())),
             broadcasting: Arc::new(Mutex::new(Broadcasting::new())),
-        });
-        let weak = Arc::downgrade(&zelf);
-        zelf.window.lock().await.set_delegate(weak);
+        }
+    }
 
-        let weak = Arc::downgrade(&zelf);
-        let mut rtmp_server = zelf.rtmp_server.lock().await;
-        rtmp_server.set_delegate(weak);
-        rtmp_server.listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
+    pub async fn run() {
+        let zelf = Arc::new(Self::new().await);
 
-        let window_join_handle = zelf.window.lock().await.run();
-        window_join_handle.await.unwrap();
+        {
+            let weak = Arc::downgrade(&zelf);
+            zelf.window.lock().await.set_delegate(weak);
+        }
+
+        {
+            let mut rtmp_server = zelf.rtmp_server.lock().await;
+            let weak = Arc::downgrade(&zelf);
+            rtmp_server.set_delegate(weak);
+            rtmp_server
+                .listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
+        }
+
+        zelf.window.lock().await.run().await.unwrap(); // long long awaiting
     }
 
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
