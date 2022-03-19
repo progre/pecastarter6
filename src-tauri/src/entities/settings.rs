@@ -1,18 +1,6 @@
-use std::{collections::HashMap, io::ErrorKind, num::NonZeroU16, path::PathBuf};
+use std::{collections::HashMap, num::NonZeroU16};
 
-use log::error;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use tauri::{
-    api::{dialog, path},
-    generate_context,
-};
-use tokio::fs::{create_dir, read_to_string, write};
-
-static APP_DIR: Lazy<PathBuf> = Lazy::new(|| {
-    let context = generate_context!();
-    path::app_dir(context.config()).unwrap()
-});
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum PeerCastType {
@@ -93,63 +81,3 @@ pub struct Settings {
 
 unsafe impl Send for Settings {}
 unsafe impl Sync for Settings {}
-
-impl Settings {
-    pub async fn load() -> Self {
-        match read_to_string(APP_DIR.join("settings.json")).await {
-            Err(err) => {
-                if err.kind() != ErrorKind::NotFound {
-                    error!("{:?}", err);
-                    let none: Option<&tauri::Window> = None;
-                    dialog::blocking::message(
-                        none,
-                        "Fatal",
-                        format!("設定ファイルの読み込みに失敗しました。({:?})", err),
-                    );
-                }
-                Settings::default()
-            }
-            Ok(str) => match serde_json::from_str::<Settings>(&str) {
-                Err(err) => {
-                    error!("{:?}", err);
-                    let none: Option<&tauri::Window> = None;
-                    dialog::blocking::message(
-                        none,
-                        "Fatal",
-                        format!(
-                            "設定ファイルが破損しています。({:?})\n設定をリセットします。",
-                            err
-                        ),
-                    );
-                    Settings::default()
-                }
-                Ok(settings) => {
-                    log::trace!("{:?}", settings);
-                    settings
-                }
-            },
-        }
-    }
-
-    pub async fn save(&self) {
-        if let Err(err) = create_dir(APP_DIR.as_path()).await {
-            if err.kind() != ErrorKind::AlreadyExists {
-                panic!("{:?}", err);
-            }
-        }
-        let opt = write(
-            APP_DIR.join("settings.json"),
-            serde_json::to_string_pretty(self).unwrap(),
-        )
-        .await;
-        if let Err(err) = opt {
-            error!("{:?}", err);
-            let none: Option<&tauri::Window> = None;
-            dialog::blocking::message(
-                none,
-                "Fatal",
-                format!("設定ファイルの保存に失敗しました。({:?})", err),
-            );
-        }
-    }
-}

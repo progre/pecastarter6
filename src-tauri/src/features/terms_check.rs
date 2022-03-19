@@ -55,7 +55,6 @@ pub async fn check_expired_terms<'a>(
     for url in expired_yp_terms {
         settings.yellow_pages_settings.agreed_terms.remove(url);
     }
-    settings.save().await;
 
     Ok(false)
 }

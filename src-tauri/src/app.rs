@@ -2,6 +2,7 @@ use std::{ops::DerefMut, sync::Arc};
 
 use async_trait::async_trait;
 use log::warn;
+use tauri::api::dialog;
 use tokio::{net::TcpStream, sync::Mutex};
 
 use crate::{
@@ -11,15 +12,18 @@ use crate::{
     },
     failure::Failure,
     features::{
+        files::{
+            settings::{
+                load_settings_and_show_dialog_if_error, save_settings_and_show_dialog_if_error,
+            },
+            yp_configs::read_yp_configs_and_show_dialog_if_error,
+        },
         peercast::broadcasting::Broadcasting,
         rtmp::{rtmp_server::RtmpServer, RtmpListenerDelegate},
         terms_check::check_expired_terms,
         ui::{Ui, UiDelegate},
     },
-    utils::{
-        read_yp_configs::read_yp_configs_and_show_dialog_if_error,
-        tcp::{connect, pipe},
-    },
+    utils::tcp::{connect, pipe},
 };
 
 #[derive(Clone)]
@@ -31,11 +35,18 @@ pub struct App {
     broadcasting: Arc<Mutex<Broadcasting>>,
 }
 
+fn show_file_error_dialog(message: &str) {
+    let none: Option<&tauri::Window> = None;
+    dialog::blocking::message(none, "Fatal", message);
+}
+
 impl App {
     async fn new() -> Self {
         Self {
-            yp_configs: read_yp_configs_and_show_dialog_if_error().await,
-            settings: Arc::new(Mutex::new(Settings::load().await)),
+            yp_configs: read_yp_configs_and_show_dialog_if_error(show_file_error_dialog).await,
+            settings: Arc::new(Mutex::new(
+                load_settings_and_show_dialog_if_error(show_file_error_dialog).await,
+            )),
             ui: Arc::new(Mutex::new(Ui::new())),
             rtmp_server: Arc::new(Mutex::new(RtmpServer::new())),
             broadcasting: Arc::new(Mutex::new(Broadcasting::new())),
@@ -66,6 +77,7 @@ impl App {
         match check_expired_terms(&self.yp_configs, &mut settings).await {
             Ok(true) => true,
             Ok(false) => {
+                save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
                 self.ui.lock().await.reset_yp_terms(&settings);
 
                 false
@@ -110,7 +122,7 @@ impl UiDelegate for App {
             }
         }
 
-        settings.save().await;
+        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
     }
 
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings) {
@@ -133,7 +145,7 @@ impl UiDelegate for App {
             }
         }
 
-        settings.save().await;
+        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
     }
 
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings) {
@@ -151,7 +163,7 @@ impl UiDelegate for App {
             }
         }
 
-        settings.save().await;
+        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
     }
 }
 
