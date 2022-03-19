@@ -27,7 +27,9 @@ function EachYellowPagesSettingsView(props: {
   );
   const conflict =
     currentYPConfig != null && currentYPConfig.host === props.usedHostForIPV4;
-  const [readedTerms, setReadedTerms] = useState<string | null>();
+  const [readedTerms, setReadedTerms] = useState(
+    props.agreedTerms[currentYPConfig?.termsURL ?? ''] ?? null
+  );
   return (
     <div
       css={css`
