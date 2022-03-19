@@ -73,7 +73,8 @@ impl App {
                 .listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
         }
 
-        zelf.ui.lock().await.run().await.unwrap(); // long long awaiting
+        let handle = zelf.ui.lock().await.run(); // release ui lock
+        handle.await.unwrap(); // long long awaiting
     }
 
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {

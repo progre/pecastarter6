@@ -176,17 +176,30 @@ impl Broadcasting {
     pub async fn stop(&mut self, port: NonZeroU16) -> Result<(), Failure> {
         try_join!(
             async {
+                log::trace!("stop ipv6");
                 if let Some(yp_id) = &self.ipv6_id {
                     PeCaStAdapter::new(port).stop_channel(yp_id).await?;
                     self.ipv6_id = None;
                 }
+                log::trace!("stop ipv6 done");
                 Ok(())
             },
             async {
+                log::trace!("stop ipv4");
                 if let Some(yp_id) = &self.ipv4_id {
-                    PeCaStAdapter::new(port).stop_channel(yp_id).await?;
+                    let res = PeCaStAdapter::new(port).stop_channel(yp_id).await;
+                    match &res {
+                        Ok(_) => {}
+                        Err(Failure::Error(message)) => {
+                            if message != "Channel not found" {
+                                return res;
+                            }
+                        }
+                        Err(_) => return res,
+                    }
                     self.ipv4_id = None;
                 }
+                log::trace!("stop ipv4 done");
                 Ok(())
             }
         )?;

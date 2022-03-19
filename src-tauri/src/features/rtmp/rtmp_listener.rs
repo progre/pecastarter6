@@ -55,7 +55,9 @@ impl RtmpListener {
             loop {
                 let (incoming, _addr) = listener.accept().await.unwrap();
 
+                log::trace!("on_connect begin");
                 delegate.upgrade().unwrap().on_connect(incoming).await;
+                log::trace!("on_connect end");
             }
         }));
     }

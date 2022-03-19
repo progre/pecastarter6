@@ -221,6 +221,7 @@ where
         Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
     })?;
     if payload_obj_ref.contains_key("error") {
+        log::trace!("{:?}", payload_obj_ref);
         return Err(Failure::Error(
             payload_obj_ref
                 .get("error")
