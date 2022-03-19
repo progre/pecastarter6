@@ -17,9 +17,13 @@ jobs:
         with:
           node-version: '16'
       - name: Build
-        run: npm ci && npm run tauri build
+        run: |
+          npm ci && npm run tauri build
+          scripts/zip.mjs
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ./src-tauri/target/release/bundle/msi/*.msi
+          files: |
+            ./src-tauri/target/release/bundle/msi/*.msi
+            *.zip
