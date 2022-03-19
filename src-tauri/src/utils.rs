@@ -1,2 +1,2 @@
-pub mod genre_parser;
+pub mod failure;
 pub mod tcp;

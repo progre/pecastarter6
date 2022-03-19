@@ -7,12 +7,11 @@ use crate::{
         settings::{EachYellowPagesSettings, Settings, YellowPagesSettings},
         yp_config::YPConfig,
     },
-    failure::Failure,
     features::peercast::{
         channel_utils::{find_id, info, ipv6_channel_name, loopback, rtmp_source},
         pecast_adapter::{Info, PeCaStAdapter, Track},
     },
-    utils::{genre_parser, tcp::find_free_port},
+    utils::{failure::Failure, tcp::find_free_port},
 };
 
 const EMPTY_TRACK: Track = Track {
@@ -62,11 +61,11 @@ fn genre(
     yp_settings: &EachYellowPagesSettings,
     base_genre: &str,
 ) -> String {
-    let yp_config = yp_configs
+    yp_configs
         .iter()
         .find(|x| x.host == yp_settings.host)
-        .unwrap();
-    genre_parser::stringify(base_genre, yp_config, yp_settings)
+        .unwrap()
+        .genre_full_text(base_genre, yp_settings)
 }
 
 async fn broadcast<'a>(

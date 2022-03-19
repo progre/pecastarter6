@@ -7,7 +7,6 @@ use app::App;
 
 mod app;
 mod entities;
-mod failure;
 mod features;
 mod utils;
 

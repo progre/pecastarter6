@@ -4,7 +4,7 @@ use log::{error, warn};
 use tauri::api::{dialog, notification::Notification};
 use tokio::task::JoinHandle;
 
-use crate::{entities::settings::Settings, failure::Failure};
+use crate::{entities::settings::Settings, utils::failure::Failure};
 
 use super::{window::Window, UiDelegate};
 

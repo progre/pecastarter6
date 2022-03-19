@@ -10,7 +10,6 @@ use crate::{
         settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
         yp_config::YPConfig,
     },
-    failure::Failure,
     features::{
         files::{
             settings::{
@@ -23,7 +22,10 @@ use crate::{
         terms_check::check_expired_terms,
         ui::{Ui, UiDelegate},
     },
-    utils::tcp::{connect, pipe},
+    utils::{
+        failure::Failure,
+        tcp::{connect, pipe},
+    },
 };
 
 #[derive(Clone)]
