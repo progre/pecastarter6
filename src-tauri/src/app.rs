@@ -3,10 +3,7 @@ use std::{ops::DerefMut, sync::Arc};
 use async_trait::async_trait;
 use log::{error, warn};
 use tauri::api::{dialog, notification::Notification};
-use tokio::{
-    net::TcpStream,
-    sync::{Mutex, MutexGuard},
-};
+use tokio::{net::TcpStream, sync::Mutex};
 
 use crate::{
     entities::{
@@ -37,17 +34,10 @@ pub struct App {
 
 impl App {
     async fn new() -> Self {
-        let yp_configs = read_yp_configs_and_show_dialog_if_error().await;
-        let settings = Arc::new(Mutex::new(Settings::load().await));
-        let window = Arc::new(Mutex::new(Window::new(
-            yp_configs.clone(),
-            settings.lock().await.clone(),
-        )));
-
         Self {
-            yp_configs,
-            settings,
-            window,
+            yp_configs: read_yp_configs_and_show_dialog_if_error().await,
+            settings: Arc::new(Mutex::new(Settings::load().await)),
+            window: Arc::new(Mutex::new(Window::new())),
             rtmp_server: Arc::new(Mutex::new(RtmpServer::new())),
             broadcasting: Arc::new(Mutex::new(Broadcasting::new())),
         }
@@ -94,33 +84,37 @@ impl App {
             }
         }
     }
+
+    async fn notify_failure(&self, failure: &Failure) {
+        error!("{:?}", failure);
+        match failure {
+            Failure::Warn(message) => {
+                self.window.lock().await.notify_error(message);
+            }
+            Failure::Error(message) => {
+                Notification::default()
+                    .title("Error")
+                    .body(message)
+                    .show()
+                    .unwrap();
+            }
+            Failure::Fatal(message) => {
+                let none: Option<&tauri::Window> = None;
+                dialog::blocking::message(none, "Fatal", message);
+            }
+        }
+    }
 }
 
 unsafe impl Send for App {}
 unsafe impl Sync for App {}
 
-fn notify_failure(window: MutexGuard<Window>, failure: &Failure) {
-    error!("{:?}", failure);
-    match failure {
-        Failure::Warn(message) => {
-            window.notify_error(message);
-        }
-        Failure::Error(message) => {
-            Notification::default()
-                .title("Error")
-                .body(message)
-                .show()
-                .unwrap();
-        }
-        Failure::Fatal(message) => {
-            let none: Option<&tauri::Window> = None;
-            dialog::blocking::message(none, "Fatal", message);
-        }
-    }
-}
-
 #[async_trait]
 impl UiDelegate for App {
+    async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
+        (self.yp_configs.clone(), self.settings.lock().await.clone())
+    }
+
     async fn on_change_general_settings(&self, general_settings: GeneralSettings) {
         log::trace!("{:?}", general_settings);
 
@@ -136,7 +130,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                notify_failure(self.window.lock().await, &err);
+                self.notify_failure(&err).await;
                 return;
             }
         }
@@ -159,7 +153,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                notify_failure(self.window.lock().await, &err);
+                self.notify_failure(&err).await;
                 return;
             }
         }
@@ -177,7 +171,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                notify_failure(self.window.lock().await, &err);
+                self.notify_failure(&err).await;
                 return;
             }
         }
@@ -199,7 +193,7 @@ impl RtmpListenerDelegate for App {
             match broadcasting.broadcast(&self.yp_configs, &settings).await {
                 Ok(ok) => ok,
                 Err(err) => {
-                    notify_failure(self.window.lock().await, &err);
+                    self.notify_failure(&err).await;
                     return;
                 }
             }
@@ -217,7 +211,7 @@ impl RtmpListenerDelegate for App {
             {
                 Ok(_) => {}
                 Err(err) => {
-                    notify_failure(self.window.lock().await, &err);
+                    self.notify_failure(&err).await;
                     return;
                 }
             }

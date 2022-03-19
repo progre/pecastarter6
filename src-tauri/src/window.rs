@@ -18,6 +18,7 @@ use crate::{
 
 #[async_trait]
 pub trait UiDelegate {
+    async fn initial_data(&self) -> (Vec<YPConfig>, Settings);
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings);
@@ -31,8 +32,10 @@ async fn fetch_hash(url: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn initial_data(state: tauri::State<'_, WindowState>) -> (Vec<YPConfig>, Settings) {
-    (state.yp_configs.clone(), state.initial_settings.clone())
+async fn initial_data(
+    state: tauri::State<'_, WindowState>,
+) -> Result<(Vec<YPConfig>, Settings), ()> {
+    Ok(state.delegate.upgrade().unwrap().initial_data().await)
 }
 
 #[tauri::command]
@@ -82,24 +85,18 @@ async fn set_channel_settings(
 }
 
 struct WindowState {
-    yp_configs: Vec<YPConfig>,
-    initial_settings: Settings,
     delegate: Weak<dyn UiDelegate + Send + Sync>,
 }
 
 pub struct Window {
     app_handle: Arc<Mutex<Option<AppHandle>>>,
-    yp_configs: Option<Vec<YPConfig>>,
-    initial_settings: Option<Settings>,
     delegate: Option<Weak<dyn UiDelegate + Send + Sync>>,
 }
 
 impl Window {
-    pub fn new(yp_configs: Vec<YPConfig>, initial_settings: Settings) -> Self {
+    pub fn new() -> Self {
         Self {
             app_handle: Arc::new(Mutex::new(None)),
-            yp_configs: Some(yp_configs),
-            initial_settings: Some(initial_settings),
             delegate: None,
         }
     }
@@ -109,17 +106,11 @@ impl Window {
     }
 
     pub fn run(&mut self) -> JoinHandle<()> {
-        let yp_configs = replace(&mut self.yp_configs, None).unwrap();
-        let settings = replace(&mut self.initial_settings, None).unwrap();
         let delegate = replace(&mut self.delegate, None).unwrap();
         let app_handle = self.app_handle.clone();
         spawn(async move {
             let app = tauri::Builder::default()
-                .manage(WindowState {
-                    yp_configs,
-                    initial_settings: settings,
-                    delegate,
-                })
+                .manage(WindowState { delegate })
                 .invoke_handler(generate_handler![
                     fetch_hash,
                     initial_data,
