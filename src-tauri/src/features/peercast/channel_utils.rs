@@ -3,9 +3,10 @@ use std::num::NonZeroU16;
 use crate::{core::entities::settings::ChannelSettings, features::peercast::pecast_adapter::Info};
 
 pub fn find_id(yp_list: &[(i32, String)], yp_host: &str) -> Option<i32> {
+    let yp_host_pecast = format!("pcp://{}/", yp_host);
     yp_list
         .iter()
-        .find(|(_, host)| host == yp_host)
+        .find(|(_, host)| host == &yp_host_pecast)
         .map(|&(id, _)| id)
 }
 
