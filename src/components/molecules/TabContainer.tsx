@@ -11,6 +11,7 @@ export function TabContent(props: TabContentProps) {
 }
 
 export default function TabContainer(props: {
+  initialTab?: string;
   children?: { props: TabContentProps } | { props: TabContentProps }[];
 }): JSX.Element {
   let children: readonly { props: TabContentProps }[];
@@ -22,7 +23,9 @@ export default function TabContainer(props: {
     children = props.children;
   }
 
-  const [current, setCurrent] = useState(children[0].props.label ?? '');
+  const [current, setCurrent] = useState(
+    props.initialTab ?? children[0].props.label ?? ''
+  );
   return (
     <div
       css={css`
