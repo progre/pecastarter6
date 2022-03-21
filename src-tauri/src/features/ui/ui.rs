@@ -23,8 +23,8 @@ impl Ui {
         self.window.set_delegate(delegate);
     }
 
-    pub fn run(&mut self, initial_rtmp: &'static str) -> JoinHandle<()> {
-        self.window.run(initial_rtmp)
+    pub fn run(&mut self, initial_rtmp: String, initial_channel_name: String) -> JoinHandle<()> {
+        self.window.run(initial_rtmp, initial_channel_name)
     }
 
     pub async fn notify_failure(&self, failure: &Failure) {
@@ -54,7 +54,7 @@ impl Ui {
         self.notify_error("YP の利用規約が変更されました。再度確認してください。");
     }
 
-    pub fn status(&self, rtmp: &str) {
+    pub fn status(&self, rtmp: String) {
         self.window.status(rtmp);
     }
 

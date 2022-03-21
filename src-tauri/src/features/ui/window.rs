@@ -43,6 +43,8 @@ async fn set_general_settings(
     general_settings: GeneralSettings,
     state: tauri::State<'_, WindowState>,
 ) -> Result<(), ()> {
+    state.title.lock().unwrap().channel_name = general_settings.channel_name[0].clone();
+
     state
         .delegate
         .upgrade()
@@ -84,8 +86,10 @@ async fn set_channel_settings(
     Ok(())
 }
 
-fn update_title(app_handle: &AppHandle, rtmp: &str) {
-    let listening_icon = match rtmp {
+fn update_title(app_handle: &AppHandle) {
+    let state = app_handle.state::<WindowState>();
+    let title = state.title.lock().unwrap();
+    let listening_icon = match title.rtmp.as_str() {
         "idle" => '×',
         "listening" => '○',
         "streaming" => '●',
@@ -95,15 +99,22 @@ fn update_title(app_handle: &AppHandle, rtmp: &str) {
         .get_window("main")
         .unwrap()
         .set_title(&format!(
-            "{} {}",
+            "{} {}{}",
             app_handle.package_info().name,
             listening_icon,
+            title.channel_name,
         ))
         .unwrap()
 }
 
+struct Title {
+    rtmp: String,
+    channel_name: String,
+}
+
 struct WindowState {
     delegate: Weak<dyn UiDelegate + Send + Sync>,
+    title: Mutex<Title>,
 }
 
 pub struct Window {
@@ -123,12 +134,18 @@ impl Window {
         self.delegate = Some(delegate);
     }
 
-    pub fn run(&mut self, initial_rtmp: &'static str) -> JoinHandle<()> {
+    pub fn run(&mut self, initial_rtmp: String, initial_channel_name: String) -> JoinHandle<()> {
         let delegate = replace(&mut self.delegate, None).unwrap();
         let app_handle = self.app_handle.clone();
         spawn(async move {
             let app = tauri::Builder::default()
-                .manage(WindowState { delegate })
+                .manage(WindowState {
+                    delegate,
+                    title: Mutex::new(Title {
+                        rtmp: initial_rtmp,
+                        channel_name: initial_channel_name,
+                    }),
+                })
                 .invoke_handler(generate_handler![
                     fetch_hash,
                     initial_data,
@@ -137,7 +154,7 @@ impl Window {
                     set_channel_settings,
                 ])
                 .on_page_load(move |window, _page_load_payload| {
-                    update_title(&window.app_handle(), initial_rtmp);
+                    update_title(&window.app_handle());
                 })
                 .any_thread()
                 .build(generate_context!())
@@ -157,18 +174,20 @@ impl Window {
             .unwrap();
     }
 
-    pub fn status(&self, rtmp: &str) {
-        let app_handle_opt = self.app_handle.lock().unwrap();
-        let app_handle = match app_handle_opt.as_ref() {
+    pub fn status(&self, rtmp: String) {
+        let mut app_handle_opt = self.app_handle.lock().unwrap();
+        let app_handle = match app_handle_opt.as_mut() {
             Some(some) => some,
             None => return,
         };
 
-        update_title(app_handle, rtmp);
+        let json = json!({ "rtmp": &rtmp });
 
-        app_handle
-            .emit_all("status", json!({ "rtmp": rtmp }))
-            .unwrap();
+        app_handle.state::<WindowState>().title.lock().unwrap().rtmp = rtmp;
+
+        update_title(app_handle);
+
+        app_handle.emit_all("status", json).unwrap();
     }
 
     pub fn notify(&self, level: &str, message: &str) {

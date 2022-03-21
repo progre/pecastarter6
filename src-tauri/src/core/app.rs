@@ -82,7 +82,10 @@ impl App {
             }
         };
 
-        let handle = zelf.ui.lock().await.run(initial_rtmp); // release ui lock
+        let handle = zelf.ui.lock().await.run(
+            initial_rtmp.to_owned(),
+            zelf.settings.lock().await.general_settings.channel_name[0].clone(),
+        ); // release ui lock
         handle.await.unwrap(); // long long awaiting
     }
 
@@ -109,7 +112,7 @@ impl App {
     async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
         let listening = rtmp_server.listen_rtmp_if_need(&self.yp_configs, settings);
         let status = if listening { "listening" } else { "idle" };
-        self.ui.lock().await.status(status);
+        self.ui.lock().await.status(status.to_owned());
         listening
     }
 }
@@ -203,12 +206,12 @@ impl RtmpListenerDelegate for App {
             }
         };
 
-        self.ui.lock().await.status("streaming");
+        self.ui.lock().await.status("streaming".to_owned());
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
-        self.ui.lock().await.status("listening");
+        self.ui.lock().await.status("listening".to_owned());
 
         {
             let mut broadcasting = self.broadcasting.lock().await;
