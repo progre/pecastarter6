@@ -52,6 +52,10 @@ export default function App(props: {
           status.rtmp !== 'streaming' ||
           (await confirm('アプリを終了するとエンコードが停止します。'))
         ) {
+          // HACK: 閉じる前に onBlur を処理
+          document
+            .querySelector<HTMLButtonElement>('button[role="tab"]')!!
+            .focus();
           appWindow.close();
         }
       });
