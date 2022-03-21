@@ -19,7 +19,7 @@ impl RtmpServer {
         self.rtmp_listener.set_delegate(delegate);
     }
 
-    pub fn listen_rtmp_if_need(&mut self, yp_configs: &[YPConfig], settings: &Settings) {
+    pub fn listen_rtmp_if_need(&mut self, yp_configs: &[YPConfig], settings: &Settings) -> bool {
         let hosts = [
             &settings.yellow_pages_settings.ipv4.host,
             &settings.yellow_pages_settings.ipv6.host,
@@ -42,17 +42,19 @@ impl RtmpServer {
             let equals_running_port =
                 self.rtmp_listener.port() == Some(settings.general_settings.rtmp_listen_port);
             if equals_running_port {
-                return;
+                return true;
             }
             self.rtmp_listener.stop_listener();
             self.rtmp_listener
                 .spawn_listener(settings.general_settings.rtmp_listen_port);
+            true
         } else {
             let running = self.rtmp_listener.port().is_some();
             if !running {
-                return;
+                return false;
             }
             self.rtmp_listener.stop_listener();
+            false
         }
     }
 }

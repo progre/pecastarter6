@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api';
-import { Event } from '@tauri-apps/api/event';
+import { Event, listen } from '@tauri-apps/api/event';
+import { appWindow } from '@tauri-apps/api/window';
+import { confirm } from '@tauri-apps/api/dialog';
 import { useEffect, useState } from 'react';
 import Notification from './components/molecules/Notification';
 import TabContainer, { TabContent } from './components/molecules/TabContainer';
@@ -9,6 +11,11 @@ import YellowPagesSettings from './components/YellowPagesSettings';
 import Settings from './entities/Settings';
 import YPConfig from './entities/YPConfig';
 import listenWrapped from './utils/listenWrapped';
+import Status from './entities/Status';
+
+const initialStatus: Status = {
+  rtmp: 'idle',
+};
 
 export default function App(props: {
   ypConfigs: readonly YPConfig[];
@@ -21,6 +28,7 @@ export default function App(props: {
     }[]
   >([]);
   const [settings, setSettings] = useState(props.defaultSettings);
+  const [status, setStatus] = useState(initialStatus);
 
   useEffect(() => {
     const notifyPromise = listenWrapped(
@@ -35,9 +43,23 @@ export default function App(props: {
         setSettings(ev.payload);
       }
     );
+    const statusPromise = listen('status', (ev: Event<Status>) => {
+      setStatus(ev.payload);
+    });
+    const closeRequestedPromise: Promise<() => Promise<void>> =
+      appWindow.listen('tauri://close-requested', async () => {
+        if (
+          status.rtmp !== 'streaming' ||
+          (await confirm('アプリを終了するとエンコードが停止します。'))
+        ) {
+          appWindow.close();
+        }
+      });
     return () => {
       notifyPromise.then((unlistenFn) => unlistenFn());
       pushSettingsPromise.then((unlistenFn) => unlistenFn());
+      statusPromise.then((unlistenFn) => unlistenFn());
+      closeRequestedPromise.then((unlistenFn) => unlistenFn());
     };
   }, []);
 

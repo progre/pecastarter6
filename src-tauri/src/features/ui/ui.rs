@@ -23,8 +23,8 @@ impl Ui {
         self.window.set_delegate(delegate);
     }
 
-    pub fn run(&mut self) -> JoinHandle<()> {
-        self.window.run()
+    pub fn run(&mut self, initial_rtmp: &'static str) -> JoinHandle<()> {
+        self.window.run(initial_rtmp)
     }
 
     pub async fn notify_failure(&self, failure: &Failure) {
@@ -52,6 +52,10 @@ impl Ui {
     pub fn reset_yp_terms(&self, settings: &Settings) {
         self.window.push_settings(settings);
         self.notify_error("YP の利用規約が変更されました。再度確認してください。");
+    }
+
+    pub fn status(&self, rtmp: &str) {
+        self.window.status(rtmp);
     }
 
     fn notify_warn(&self, message: &str) {

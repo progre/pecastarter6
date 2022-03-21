@@ -1,4 +1,7 @@
-use std::{ops::DerefMut, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use log::warn;
@@ -65,15 +68,21 @@ impl App {
             zelf.ui.lock().await.set_delegate(weak);
         }
 
-        {
+        let initial_rtmp = {
             let mut rtmp_server = zelf.rtmp_server.lock().await;
             let weak = Arc::downgrade(&zelf);
             rtmp_server.set_delegate(weak);
-            rtmp_server
-                .listen_rtmp_if_need(&zelf.yp_configs, zelf.settings.lock().await.deref_mut());
-        }
+            let listening = zelf
+                .listen_rtmp_if_need(&mut rtmp_server, zelf.settings.lock().await.deref())
+                .await;
+            if listening {
+                "listening"
+            } else {
+                "idle"
+            }
+        };
 
-        let handle = zelf.ui.lock().await.run(); // release ui lock
+        let handle = zelf.ui.lock().await.run(initial_rtmp); // release ui lock
         handle.await.unwrap(); // long long awaiting
     }
 
@@ -96,6 +105,13 @@ impl App {
             }
         }
     }
+
+    async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
+        let listening = rtmp_server.listen_rtmp_if_need(&self.yp_configs, settings);
+        let status = if listening { "listening" } else { "idle" };
+        self.ui.lock().await.status(status);
+        listening
+    }
 }
 
 unsafe impl Send for App {}
@@ -113,10 +129,8 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.general_settings = general_settings;
 
-        self.rtmp_server
-            .lock()
-            .await
-            .listen_rtmp_if_need(&self.yp_configs, &settings);
+        self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
+            .await;
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
@@ -136,10 +150,8 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.yellow_pages_settings = yellow_pages_settings;
 
-        self.rtmp_server
-            .lock()
-            .await
-            .listen_rtmp_if_need(&self.yp_configs, &settings);
+        self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
+            .await;
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
@@ -191,8 +203,12 @@ impl RtmpListenerDelegate for App {
             }
         };
 
+        self.ui.lock().await.status("streaming");
+
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
+
+        self.ui.lock().await.status("listening");
 
         {
             let mut broadcasting = self.broadcasting.lock().await;

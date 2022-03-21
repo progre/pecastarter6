@@ -48,15 +48,22 @@
       "active": false
     },
     "allowlist": {
+      "dialog": {
+        "confirm": true
+      },
       "notification": {
         "all": true
       },
       "shell": {
         "open": true
+      },
+      "window": {
+        "close": true
       }
     },
     "windows": [
       {
+        "label": "main",
         "title": "PeCa Starter",
         "width": 512,
         "height": 320,
