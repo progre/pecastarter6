@@ -86,23 +86,26 @@ async fn set_channel_settings(
     Ok(())
 }
 
-fn update_title(app_handle: &AppHandle) {
-    let state = app_handle.state::<WindowState>();
-    let title = state.title.lock().unwrap();
+fn title_status(title: &Title) -> String {
     let listening_icon = match title.rtmp.as_str() {
         "idle" => '×',
         "listening" => '○',
         "streaming" => '●',
         _ => unreachable!(),
     };
+    format!("{}{}", listening_icon, title.channel_name,)
+}
+
+fn update_title(app_handle: &AppHandle) {
+    let state = app_handle.state::<WindowState>();
+    let title = state.title.lock().unwrap();
     app_handle
         .get_window("main")
         .unwrap()
         .set_title(&format!(
-            "{} {}{}",
+            "{} {}",
             app_handle.package_info().name,
-            listening_icon,
-            title.channel_name,
+            title_status(&title),
         ))
         .unwrap()
 }
