@@ -27,7 +27,7 @@ impl Ui {
         self.window.run(initial_rtmp, initial_channel_name)
     }
 
-    pub async fn notify_failure(&self, failure: &Failure) {
+    pub fn notify_failure(&self, failure: &Failure) {
         match failure {
             Failure::Warn(message) => {
                 warn!("{:?}", failure);
