@@ -1,7 +1,4 @@
-use std::{
-    mem::replace,
-    sync::{Arc, Mutex, Weak},
-};
+use std::sync::{Arc, Mutex, Weak};
 
 use async_trait::async_trait;
 use serde_json::json;
@@ -17,12 +14,15 @@ use crate::{
 };
 
 #[async_trait]
-pub trait UiDelegate {
+pub trait WindowDelegate {
+    fn on_load_page(&self);
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings);
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings);
 }
+
+type DynSendSyncWindowDelegate = dyn Send + Sync + WindowDelegate;
 
 #[tauri::command]
 async fn fetch_hash(url: String) -> Result<String, String> {
@@ -35,7 +35,7 @@ async fn fetch_hash(url: String) -> Result<String, String> {
 async fn initial_data(
     state: tauri::State<'_, WindowState>,
 ) -> Result<(Vec<YPConfig>, Settings), ()> {
-    Ok(state.delegate.upgrade().unwrap().initial_data().await)
+    Ok(state.delegate().initial_data().await)
 }
 
 #[tauri::command]
@@ -43,12 +43,8 @@ async fn set_general_settings(
     general_settings: GeneralSettings,
     state: tauri::State<'_, WindowState>,
 ) -> Result<(), ()> {
-    state.title.lock().unwrap().channel_name = general_settings.channel_name[0].clone();
-
     state
-        .delegate
-        .upgrade()
-        .unwrap()
+        .delegate()
         .on_change_general_settings(general_settings)
         .await;
 
@@ -62,9 +58,7 @@ async fn set_yellow_pages_settings(
     state: tauri::State<'_, WindowState>,
 ) -> Result<(), ()> {
     state
-        .delegate
-        .upgrade()
-        .unwrap()
+        .delegate()
         .on_change_yellow_pages_settings(yellow_pages_settings)
         .await;
 
@@ -77,78 +71,48 @@ async fn set_channel_settings(
     state: tauri::State<'_, WindowState>,
 ) -> Result<(), ()> {
     state
-        .delegate
-        .upgrade()
-        .unwrap()
+        .delegate()
         .on_change_channel_settings(channel_settings)
         .await;
 
     Ok(())
 }
 
-fn title_status(title: &Title) -> String {
-    let listening_icon = match title.rtmp.as_str() {
-        "idle" => '×',
-        "listening" => '○',
-        "streaming" => '●',
-        _ => unreachable!(),
-    };
-    format!("{}{}", listening_icon, title.channel_name,)
+trait StateExt {
+    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate>;
 }
 
-fn update_title(app_handle: &AppHandle) {
-    let state = app_handle.state::<WindowState>();
-    let title = state.title.lock().unwrap();
-    app_handle
-        .get_window("main")
-        .unwrap()
-        .set_title(&format!(
-            "{} {}",
-            app_handle.package_info().name,
-            title_status(&title),
-        ))
-        .unwrap()
+impl StateExt for tauri::State<'_, WindowState> {
+    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
+        self.delegate.upgrade().unwrap()
+    }
 }
 
-struct Title {
-    rtmp: String,
-    channel_name: String,
+pub struct Title {
+    pub rtmp: String,
+    pub channel_name: String,
 }
 
 struct WindowState {
-    delegate: Weak<dyn UiDelegate + Send + Sync>,
-    title: Mutex<Title>,
+    delegate: Weak<DynSendSyncWindowDelegate>,
 }
 
 pub struct Window {
     app_handle: Arc<Mutex<Option<AppHandle>>>,
-    delegate: Option<Weak<dyn UiDelegate + Send + Sync>>,
 }
 
 impl Window {
     pub fn new() -> Self {
         Self {
             app_handle: Arc::new(Mutex::new(None)),
-            delegate: None,
         }
     }
 
-    pub fn set_delegate(&mut self, delegate: Weak<dyn UiDelegate + Send + Sync>) {
-        self.delegate = Some(delegate);
-    }
-
-    pub fn run(&mut self, initial_rtmp: String, initial_channel_name: String) -> JoinHandle<()> {
-        let delegate = replace(&mut self.delegate, None).unwrap();
+    pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
         let app_handle = self.app_handle.clone();
         spawn(async move {
             let app = tauri::Builder::default()
-                .manage(WindowState {
-                    delegate,
-                    title: Mutex::new(Title {
-                        rtmp: initial_rtmp,
-                        channel_name: initial_channel_name,
-                    }),
-                })
+                .manage(WindowState { delegate })
                 .invoke_handler(generate_handler![
                     fetch_hash,
                     initial_data,
@@ -157,7 +121,9 @@ impl Window {
                     set_channel_settings,
                 ])
                 .on_page_load(move |window, _page_load_payload| {
-                    update_title(&window.app_handle());
+                    (window.state() as tauri::State<'_, WindowState>)
+                        .delegate()
+                        .on_load_page();
                 })
                 .any_thread()
                 .build(generate_context!())
@@ -167,45 +133,45 @@ impl Window {
         })
     }
 
-    pub fn push_settings(&self, settings: &Settings) {
-        self.app_handle
-            .lock()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .emit_all("push_settings", settings)
-            .unwrap();
+    fn app_handle(&self, callback: impl FnOnce(&AppHandle)) {
+        callback(self.app_handle.lock().unwrap().as_ref().unwrap());
     }
 
-    pub fn status(&self, rtmp: String) {
-        let mut app_handle_opt = self.app_handle.lock().unwrap();
-        let app_handle = match app_handle_opt.as_mut() {
-            Some(some) => some,
-            None => return,
-        };
-
-        let json = json!({ "rtmp": &rtmp });
-
-        app_handle.state::<WindowState>().title.lock().unwrap().rtmp = rtmp;
-
-        update_title(app_handle);
-
-        app_handle.emit_all("status", json).unwrap();
+    pub fn push_settings(&self, settings: &Settings) {
+        self.app_handle(|app_handle| {
+            app_handle.emit_all("push_settings", settings).unwrap();
+        });
     }
 
     pub fn notify(&self, level: &str, message: &str) {
-        self.app_handle
-            .lock()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .emit_all(
-                "notify",
-                json!({
-                    "level": level,
-                    "message": message
-                }),
-            )
-            .unwrap();
+        self.app_handle(|app_handle| {
+            let json = json!({
+                "level": level,
+                "message": message
+            });
+            app_handle.emit_all("notify", json).unwrap();
+        });
+    }
+
+    pub fn status(&self, rtmp: &str) {
+        self.app_handle(|app_handle| {
+            let json = json!({ "rtmp": rtmp });
+
+            app_handle.emit_all("status", json).unwrap();
+        });
+    }
+
+    pub fn update_title(&self, title_status: &str) {
+        self.app_handle(|app_handle| {
+            app_handle
+                .get_window("main")
+                .unwrap()
+                .set_title(&format!(
+                    "{} {}",
+                    app_handle.package_info().name,
+                    title_status,
+                ))
+                .unwrap()
+        });
     }
 }

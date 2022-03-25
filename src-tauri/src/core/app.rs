@@ -63,11 +63,6 @@ impl App {
     pub async fn run() {
         let zelf = Arc::new(Self::new().await);
 
-        {
-            let weak = Arc::downgrade(&zelf);
-            zelf.ui.lock().unwrap().set_delegate(weak);
-        }
-
         let initial_rtmp = {
             let mut rtmp_server = zelf.rtmp_server.lock().unwrap();
             let weak = Arc::downgrade(&zelf);
@@ -81,9 +76,11 @@ impl App {
             }
         };
 
+        let weak = Arc::downgrade(&zelf);
         let handle = zelf.ui.lock().unwrap().run(
             initial_rtmp.to_owned(),
             zelf.settings.lock().await.general_settings.channel_name[0].clone(),
+            weak,
         ); // release ui lock
         handle.await.unwrap(); // long long awaiting
     }

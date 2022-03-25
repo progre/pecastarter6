@@ -3,4 +3,4 @@ mod ui;
 mod window;
 
 pub use self::ui::Ui;
-pub use self::window::UiDelegate;
+pub use self::ui::UiDelegate;
