@@ -114,7 +114,7 @@ impl App {
     async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
         let listening = rtmp_server.listen_rtmp_if_need(&self.yp_configs, settings);
         let status = if listening { "listening" } else { "idle" };
-        self.ui.lock().await.status(status.to_owned()).await;
+        self.ui.lock().await.set_rtmp(status.to_owned()).await;
         listening
     }
 }
@@ -208,12 +208,12 @@ impl RtmpListenerDelegate for App {
             }
         };
 
-        self.ui.lock().await.status("streaming".to_owned()).await;
+        self.ui.lock().await.set_rtmp("streaming".to_owned()).await;
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
-        self.ui.lock().await.status("listening".to_owned()).await;
+        self.ui.lock().await.set_rtmp("listening".to_owned()).await;
 
         {
             let mut broadcasting = self.broadcasting.lock().await;

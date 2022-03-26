@@ -61,7 +61,7 @@ impl WindowDelegateImpl {
 impl WindowDelegate for WindowDelegateImpl {
     async fn on_load_page(&self) {
         let title_status = self.title.lock().unwrap().to_string();
-        self.window.set_title_status(title_status).await ;
+        self.window.set_title_status(title_status).await;
     }
 
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
@@ -155,7 +155,7 @@ impl Ui {
             .await;
     }
 
-    pub async fn status(&self, rtmp: String) {
+    pub async fn set_rtmp(&self, rtmp: String) {
         if let Some(window_delegate_impl) = &self.window_delegate_impl {
             window_delegate_impl.window.set_rtmp(&rtmp).await;
             let title_status = {
@@ -163,7 +163,10 @@ impl Ui {
                 title.rtmp = rtmp;
                 title.to_string()
             };
-            window_delegate_impl.window.set_title_status(title_status).await;
+            window_delegate_impl
+                .window
+                .set_title_status(title_status)
+                .await;
         }
     }
 
