@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex, Weak};
 
 use async_trait::async_trait;
 use serde_json::{json, Value};
-use tauri::{generate_context, generate_handler, Manager};
-use tokio::{spawn, sync::mpsc, task::JoinHandle};
+use tauri::{generate_context, generate_handler, Manager, PageLoadPayload};
+use tokio::{sync::mpsc, task::JoinHandle};
 
 use crate::{
     core::entities::{
@@ -12,6 +12,18 @@ use crate::{
     },
     features::terms_check,
 };
+
+/*
+ * # tokio スレッドと std スレッドの間の通信について
+ *
+ * tokio スレッド -> std スレッド
+ * * スレッドセーフ?の AppHandle に一任
+ * * channel でのデータ転送
+ *
+ * std スレッド -> tokio スレッド
+ * * delegate (但し即時処理のみ対応)
+ * * channel でのデータ転送 (但し戻り値を持てない)
+ */
 
 #[async_trait]
 pub trait WindowDelegate {
@@ -23,6 +35,20 @@ pub trait WindowDelegate {
 }
 
 type DynSendSyncWindowDelegate = dyn Send + Sync + WindowDelegate;
+
+struct WindowState {
+    delegate: Weak<DynSendSyncWindowDelegate>,
+}
+
+trait StateExt {
+    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate>;
+}
+
+impl StateExt for tauri::State<'_, WindowState> {
+    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
+        self.delegate.upgrade().unwrap()
+    }
+}
 
 #[tauri::command]
 async fn fetch_hash(url: String) -> Result<String, String> {
@@ -78,138 +104,111 @@ async fn set_channel_settings(
     Ok(())
 }
 
-trait StateExt {
-    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate>;
+fn on_page_load(window: tauri::Window, _page_load_payload: PageLoadPayload) {
+    (window.state() as tauri::State<'_, WindowState>)
+        .delegate()
+        .on_load_page();
 }
 
-impl StateExt for tauri::State<'_, WindowState> {
-    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
-        self.delegate.upgrade().unwrap()
-    }
+fn run_tauri(mut command_rx: mpsc::Receiver<Command>, delegate: Weak<DynSendSyncWindowDelegate>) {
+    let app = tauri::Builder::default()
+        .manage(WindowState { delegate })
+        .invoke_handler(generate_handler![
+            fetch_hash,
+            initial_data,
+            set_general_settings,
+            set_yellow_pages_settings,
+            set_channel_settings,
+        ])
+        .on_page_load(on_page_load)
+        .any_thread()
+        .build(generate_context!())
+        .expect("error while running tauri application");
+    app.run(move |app_handle, _| {
+        if let Ok(command) = command_rx.try_recv() {
+            match command {
+                Command::Emit(event, payload) => {
+                    app_handle.emit_all(event, payload).unwrap();
+                }
+                Command::UpdateTitle(title_status) => app_handle
+                    .get_window("main")
+                    .unwrap()
+                    .set_title(&format!(
+                        "{} {}",
+                        app_handle.package_info().name,
+                        title_status,
+                    ))
+                    .unwrap(),
+            }
+        }
+    });
 }
-
-pub struct Title {
-    pub rtmp: String,
-    pub channel_name: String,
-}
-
-unsafe impl Send for Title {}
-unsafe impl Sync for Title {}
 
 enum Command {
-    PushSettings(Box<PushSettingsCommand>),
-    Notify(NotifyCommand),
-    Status(StatusCommand),
-    UpdateTitle(UpdateTitleCommand),
-}
-
-struct PushSettingsCommand(Settings);
-struct NotifyCommand(Value);
-struct StatusCommand(Value);
-struct UpdateTitleCommand(String);
-
-struct WindowState {
-    delegate: Weak<DynSendSyncWindowDelegate>,
+    Emit(&'static str, Value),
+    UpdateTitle(String),
 }
 
 pub struct Window {
-    tx: mpsc::Sender<Command>,
-    rx: Mutex<Option<mpsc::Receiver<Command>>>,
+    command_tx: mpsc::Sender<Command>,
+    command_rx: Mutex<Option<mpsc::Receiver<Command>>>,
 }
 
 impl Window {
     pub fn new() -> Self {
-        let (tx, rx) = mpsc::channel(16);
+        let (command_tx, command_rx) = mpsc::channel(16);
         Self {
-            tx,
-            rx: Mutex::new(Some(rx)),
+            command_tx,
+            command_rx: Mutex::new(Some(command_rx)),
         }
     }
 
     pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
-        let mut rx = self.rx.lock().unwrap().take().unwrap();
-        spawn(async move {
-            let app = tauri::Builder::default()
-                .manage(WindowState { delegate })
-                .invoke_handler(generate_handler![
-                    fetch_hash,
-                    initial_data,
-                    set_general_settings,
-                    set_yellow_pages_settings,
-                    set_channel_settings,
-                ])
-                .on_page_load(move |window, _page_load_payload| {
-                    (window.state() as tauri::State<'_, WindowState>)
-                        .delegate()
-                        .on_load_page();
-                })
-                .any_thread()
-                .build(generate_context!())
-                .expect("error while running tauri application");
-            log::trace!("run");
-            app.run(move |app_handle, _| {
-                if let Ok(command) = rx.try_recv() {
-                    match command {
-                        Command::PushSettings(settings_command) => {
-                            app_handle
-                                .emit_all("push_settings", settings_command.0)
-                                .unwrap();
-                        }
-                        Command::Notify(NotifyCommand(json)) => {
-                            app_handle.emit_all("notify", json).unwrap();
-                        }
-                        Command::Status(StatusCommand(json)) => {
-                            app_handle.emit_all("status", json).unwrap();
-                        }
-                        Command::UpdateTitle(UpdateTitleCommand(title_status)) => {
-                            log::trace!("receive send {}", title_status);
-                            app_handle
-                                .get_window("main")
-                                .unwrap()
-                                .set_title(&format!(
-                                    "{} {}",
-                                    app_handle.package_info().name,
-                                    title_status,
-                                ))
-                                .unwrap()
-                        }
-                    }
-                }
-            });
+        let command_rx = self.command_rx.lock().unwrap().take().unwrap();
+        let (oneshot_tx, oneshot_rx) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            run_tauri(command_rx, delegate);
+            oneshot_tx.send(()).unwrap();
+        });
+        tokio::spawn(async {
+            oneshot_rx.await.unwrap();
         })
     }
 
     pub async fn push_settings(&self, settings: Settings) {
-        self.tx
-            .send(Command::PushSettings(Box::new(PushSettingsCommand(
-                settings,
-            ))))
+        self.command_tx
+            .send(Command::Emit(
+                "push_settings",
+                serde_json::to_value(settings).unwrap(),
+            ))
             .await
             .unwrap_or_else(|err| panic!("{}", err));
     }
 
     pub async fn notify(&self, level: &str, message: &str) {
-        let json = json!({
-            "level": level,
-            "message": message
-        });
-        self.tx
-            .send(Command::Notify(NotifyCommand(json)))
+        self.command_tx
+            .send(Command::Emit(
+                "notify",
+                json!({
+                    "level": level,
+                    "message": message
+                }),
+            ))
             .await
             .unwrap_or_else(|err| panic!("{}", err));
     }
 
-    pub async fn status(&self, rtmp: &str) {
-        let json = json!({ "rtmp": rtmp });
-        self.tx
-            .send(Command::Status(StatusCommand(json)))
+    pub async fn set_rtmp(&self, rtmp: &str) {
+        self.command_tx
+            .send(Command::Emit("status", json!({ "rtmp": rtmp })))
             .await
             .unwrap_or_else(|err| panic!("{}", err));
     }
 
-    pub fn update_title(&self, title_status: String) {
-        self.tx
-            .try_send(Command::UpdateTitle(UpdateTitleCommand(title_status)))
+    pub fn set_title_status(&self, title_status: String) {
+        self.command_tx
+            // TODO: 高負荷時にクラッシュする可能性がある
+            .try_send(Command::UpdateTitle(title_status))
             .unwrap_or_else(|err| panic!("{}", err));
     }
 }

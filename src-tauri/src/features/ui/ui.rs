@@ -13,17 +13,7 @@ use crate::core::{
     utils::failure::Failure,
 };
 
-use super::window::{Title, Window, WindowDelegate};
-
-fn title_status(title: &Title) -> String {
-    let listening_icon = match title.rtmp.as_str() {
-        "idle" => '×',
-        "listening" => '○',
-        "streaming" => '●',
-        _ => unreachable!(),
-    };
-    format!("{}{}", listening_icon, title.channel_name,)
-}
+use super::window::{Window, WindowDelegate};
 
 #[async_trait]
 pub trait UiDelegate {
@@ -34,6 +24,23 @@ pub trait UiDelegate {
 }
 
 type DynSendSyncUiDelegate = dyn Send + Sync + UiDelegate;
+
+pub struct Title {
+    pub rtmp: String,
+    pub channel_name: String,
+}
+
+impl ToString for Title {
+    fn to_string(&self) -> String {
+        let listening_icon = match self.rtmp.as_str() {
+            "idle" => '×',
+            "listening" => '○',
+            "streaming" => '●',
+            _ => unreachable!(),
+        };
+        format!("{}{}", listening_icon, self.channel_name)
+    }
+}
 
 struct WindowDelegateImpl {
     pub window: Window,
@@ -53,8 +60,8 @@ impl WindowDelegateImpl {
 #[async_trait]
 impl WindowDelegate for WindowDelegateImpl {
     fn on_load_page(&self) {
-        let title_status = title_status(&self.title.lock().unwrap());
-        self.window.update_title(title_status);
+        let title_status = self.title.lock().unwrap().to_string();
+        self.window.set_title_status(title_status);
     }
 
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
@@ -150,13 +157,13 @@ impl Ui {
 
     pub async fn status(&self, rtmp: String) {
         if let Some(window_delegate_impl) = &self.window_delegate_impl {
-            window_delegate_impl.window.status(&rtmp).await;
+            window_delegate_impl.window.set_rtmp(&rtmp).await;
             let title_status = {
                 let title = &mut window_delegate_impl.title.lock().unwrap();
                 title.rtmp = rtmp;
-                title_status(title)
+                title.to_string()
             };
-            window_delegate_impl.window.update_title(title_status);
+            window_delegate_impl.window.set_title_status(title_status);
         }
     }
 
