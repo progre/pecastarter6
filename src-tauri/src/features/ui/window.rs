@@ -1,6 +1,7 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Mutex, Weak};
 
 use async_trait::async_trait;
+use futures::future::BoxFuture;
 use serde_json::{json, Value};
 use tauri::{generate_context, generate_handler, Manager, PageLoadPayload};
 use tokio::{sync::mpsc, task::JoinHandle};
@@ -27,7 +28,7 @@ use crate::{
 
 #[async_trait]
 pub trait WindowDelegate {
-    fn on_load_page(&self);
+    async fn on_load_page(&self);
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings);
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
@@ -36,18 +37,31 @@ pub trait WindowDelegate {
 
 type DynSendSyncWindowDelegate = dyn Send + Sync + WindowDelegate;
 
+type InitialData = Box<dyn Send + Sync + Fn() -> BoxFuture<'static, (Vec<YPConfig>, Settings)>>;
+
 struct WindowState {
-    delegate: Weak<DynSendSyncWindowDelegate>,
+    event_tx: mpsc::Sender<Event>,
+    initial_data: InitialData,
 }
 
-trait StateExt {
-    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate>;
-}
-
-impl StateExt for tauri::State<'_, WindowState> {
-    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
-        self.delegate.upgrade().unwrap()
+impl WindowState {
+    fn blocking_send(&self, event: Event) {
+        self.event_tx
+            .blocking_send(event)
+            .unwrap_or_else(|err| panic!("{}", err));
     }
+}
+
+enum Command {
+    Emit(&'static str, Value),
+    UpdateTitle(String),
+}
+
+enum Event {
+    PageLoad,
+    ChangeGeneralSettings(GeneralSettings),
+    ChangeYellowPagesSettings(YellowPagesSettings),
+    ChangeChannelSettings(ChannelSettings),
 }
 
 #[tauri::command]
@@ -61,58 +75,41 @@ async fn fetch_hash(url: String) -> Result<String, String> {
 async fn initial_data(
     state: tauri::State<'_, WindowState>,
 ) -> Result<(Vec<YPConfig>, Settings), ()> {
-    Ok(state.delegate().initial_data().await)
+    Ok((state.initial_data)().await)
 }
 
 #[tauri::command]
-async fn set_general_settings(
-    general_settings: GeneralSettings,
+fn set_general_settings(state: tauri::State<'_, WindowState>, general_settings: GeneralSettings) {
+    state.blocking_send(Event::ChangeGeneralSettings(general_settings));
+}
+
+#[tauri::command]
+fn set_yellow_pages_settings(
     state: tauri::State<'_, WindowState>,
-) -> Result<(), ()> {
-    state
-        .delegate()
-        .on_change_general_settings(general_settings)
-        .await;
-
-    // WTF: 戻り値Resultが必須。バグ？
-    Ok(())
-}
-
-#[tauri::command]
-async fn set_yellow_pages_settings(
     yellow_pages_settings: YellowPagesSettings,
-    state: tauri::State<'_, WindowState>,
-) -> Result<(), ()> {
-    state
-        .delegate()
-        .on_change_yellow_pages_settings(yellow_pages_settings)
-        .await;
-
-    Ok(())
+) {
+    state.blocking_send(Event::ChangeYellowPagesSettings(yellow_pages_settings));
 }
 
 #[tauri::command]
-async fn set_channel_settings(
-    channel_settings: ChannelSettings,
-    state: tauri::State<'_, WindowState>,
-) -> Result<(), ()> {
-    state
-        .delegate()
-        .on_change_channel_settings(channel_settings)
-        .await;
-
-    Ok(())
+fn set_channel_settings(state: tauri::State<'_, WindowState>, channel_settings: ChannelSettings) {
+    state.blocking_send(Event::ChangeChannelSettings(channel_settings));
 }
 
 fn on_page_load(window: tauri::Window, _page_load_payload: PageLoadPayload) {
-    (window.state() as tauri::State<'_, WindowState>)
-        .delegate()
-        .on_load_page();
+    (window.state() as tauri::State<'_, WindowState>).blocking_send(Event::PageLoad);
 }
 
-fn run_tauri(mut command_rx: mpsc::Receiver<Command>, delegate: Weak<DynSendSyncWindowDelegate>) {
+fn run_tauri(
+    mut command_rx: mpsc::Receiver<Command>,
+    event_tx: mpsc::Sender<Event>,
+    initial_data_closure: InitialData,
+) {
     let app = tauri::Builder::default()
-        .manage(WindowState { delegate })
+        .manage(WindowState {
+            event_tx,
+            initial_data: initial_data_closure,
+        })
         .invoke_handler(generate_handler![
             fetch_hash,
             initial_data,
@@ -144,11 +141,6 @@ fn run_tauri(mut command_rx: mpsc::Receiver<Command>, delegate: Weak<DynSendSync
     });
 }
 
-enum Command {
-    Emit(&'static str, Value),
-    UpdateTitle(String),
-}
-
 pub struct Window {
     command_tx: mpsc::Sender<Command>,
     command_rx: Mutex<Option<mpsc::Receiver<Command>>>,
@@ -165,10 +157,39 @@ impl Window {
 
     pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
         let command_rx = self.command_rx.lock().unwrap().take().unwrap();
+        let (event_tx, mut event_rx) = mpsc::channel(16);
         let (oneshot_tx, oneshot_rx) = tokio::sync::oneshot::channel();
+        let std_thread_delegate = delegate.clone();
         std::thread::spawn(move || {
-            run_tauri(command_rx, delegate);
+            run_tauri(
+                command_rx,
+                event_tx,
+                Box::new(move || {
+                    let delegate = std_thread_delegate.clone();
+                    Box::pin(async move { delegate.upgrade().unwrap().initial_data().await })
+                }),
+            );
             oneshot_tx.send(()).unwrap();
+        });
+        tokio::spawn(async move {
+            loop {
+                let event = event_rx.recv().await.unwrap();
+                let delegate = delegate.upgrade().unwrap();
+                match event {
+                    Event::PageLoad => delegate.on_load_page().await,
+                    Event::ChangeGeneralSettings(general_settings) => {
+                        delegate.on_change_general_settings(general_settings).await
+                    }
+                    Event::ChangeYellowPagesSettings(yellow_pages_settings) => {
+                        delegate
+                            .on_change_yellow_pages_settings(yellow_pages_settings)
+                            .await
+                    }
+                    Event::ChangeChannelSettings(channel_settings) => {
+                        delegate.on_change_channel_settings(channel_settings).await
+                    }
+                }
+            }
         });
         tokio::spawn(async {
             oneshot_rx.await.unwrap();
@@ -176,39 +197,37 @@ impl Window {
     }
 
     pub async fn push_settings(&self, settings: Settings) {
-        self.command_tx
-            .send(Command::Emit(
-                "push_settings",
-                serde_json::to_value(settings).unwrap(),
-            ))
-            .await
-            .unwrap_or_else(|err| panic!("{}", err));
+        self.send(Command::Emit(
+            "push_settings",
+            serde_json::to_value(settings).unwrap(),
+        ))
+        .await;
     }
 
     pub async fn notify(&self, level: &str, message: &str) {
-        self.command_tx
-            .send(Command::Emit(
-                "notify",
-                json!({
-                    "level": level,
-                    "message": message
-                }),
-            ))
-            .await
-            .unwrap_or_else(|err| panic!("{}", err));
+        self.send(Command::Emit(
+            "notify",
+            json!({
+                "level": level,
+                "message": message
+            }),
+        ))
+        .await;
     }
 
     pub async fn set_rtmp(&self, rtmp: &str) {
-        self.command_tx
-            .send(Command::Emit("status", json!({ "rtmp": rtmp })))
-            .await
-            .unwrap_or_else(|err| panic!("{}", err));
+        self.send(Command::Emit("status", json!({ "rtmp": rtmp })))
+            .await;
     }
 
-    pub fn set_title_status(&self, title_status: String) {
+    pub async fn set_title_status(&self, title_status: String) {
+        self.send(Command::UpdateTitle(title_status)).await;
+    }
+
+    async fn send(&self, command: Command) {
         self.command_tx
-            // TODO: 高負荷時にクラッシュする可能性がある
-            .try_send(Command::UpdateTitle(title_status))
+            .send(command)
+            .await
             .unwrap_or_else(|err| panic!("{}", err));
     }
 }
