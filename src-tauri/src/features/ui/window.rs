@@ -1,9 +1,9 @@
-use std::sync::{Mutex, Weak};
+use std::sync::{Arc, Mutex, Weak};
 
 use async_trait::async_trait;
-use futures::future::BoxFuture;
+use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
-use tauri::{generate_context, generate_handler, Manager, PageLoadPayload};
+use tauri::{generate_context, Invoke, InvokeMessage, Manager, PageLoadPayload};
 use tokio::{sync::mpsc, task::JoinHandle};
 
 use crate::{
@@ -24,6 +24,7 @@ use crate::{
  * std スレッド -> tokio スレッド
  * * delegate (但し即時処理のみ対応)
  * * channel でのデータ転送 (但し戻り値を持てない)
+ * * tauri::async_runtime::spawn でラップ
  */
 
 #[async_trait]
@@ -37,18 +38,13 @@ pub trait WindowDelegate {
 
 type DynSendSyncWindowDelegate = dyn Send + Sync + WindowDelegate;
 
-type InitialData = Box<dyn Send + Sync + Fn() -> BoxFuture<'static, (Vec<YPConfig>, Settings)>>;
-
 struct WindowState {
-    event_tx: mpsc::Sender<Event>,
-    initial_data: InitialData,
+    delegate: Weak<DynSendSyncWindowDelegate>,
 }
 
 impl WindowState {
-    fn blocking_send(&self, event: Event) {
-        self.event_tx
-            .blocking_send(event)
-            .unwrap_or_else(|err| panic!("{}", err));
+    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
+        self.delegate.upgrade().unwrap()
     }
 }
 
@@ -57,88 +53,83 @@ enum Command {
     UpdateTitle(String),
 }
 
-enum Event {
-    PageLoad,
-    ChangeGeneralSettings(GeneralSettings),
-    ChangeYellowPagesSettings(YellowPagesSettings),
-    ChangeChannelSettings(ChannelSettings),
+#[async_trait]
+trait InvokeMessageExt {
+    fn get_from_payload<T>(&self, param: &str) -> T
+    where
+        T: DeserializeOwned;
 }
 
-#[tauri::command]
-async fn fetch_hash(url: String) -> Result<String, String> {
-    terms_check::fetch_hash(&url)
-        .await
-        .map_err(|err| err.to_string())
+#[async_trait]
+impl InvokeMessageExt for InvokeMessage {
+    fn get_from_payload<T>(&self, param: &str) -> T
+    where
+        T: DeserializeOwned,
+    {
+        serde_json::from_value(self.payload().get(param).unwrap().clone()).unwrap()
+    }
 }
 
-#[tauri::command]
-async fn initial_data(
-    state: tauri::State<'_, WindowState>,
-) -> Result<(Vec<YPConfig>, Settings), ()> {
-    Ok((state.initial_data)().await)
-}
-
-#[tauri::command]
-fn set_general_settings(state: tauri::State<'_, WindowState>, general_settings: GeneralSettings) {
-    state.blocking_send(Event::ChangeGeneralSettings(general_settings));
-}
-
-#[tauri::command]
-fn set_yellow_pages_settings(
-    state: tauri::State<'_, WindowState>,
-    yellow_pages_settings: YellowPagesSettings,
-) {
-    state.blocking_send(Event::ChangeYellowPagesSettings(yellow_pages_settings));
-}
-
-#[tauri::command]
-fn set_channel_settings(state: tauri::State<'_, WindowState>, channel_settings: ChannelSettings) {
-    state.blocking_send(Event::ChangeChannelSettings(channel_settings));
-}
-
-fn on_page_load(window: tauri::Window, _page_load_payload: PageLoadPayload) {
-    (window.state() as tauri::State<'_, WindowState>).blocking_send(Event::PageLoad);
-}
-
-fn run_tauri(
-    mut command_rx: mpsc::Receiver<Command>,
-    event_tx: mpsc::Sender<Event>,
-    initial_data_closure: InitialData,
-) {
-    let app = tauri::Builder::default()
-        .manage(WindowState {
-            event_tx,
-            initial_data: initial_data_closure,
+fn run_tauri(delegate: Weak<DynSendSyncWindowDelegate>, mut command_rx: mpsc::Receiver<Command>) {
+    tauri::Builder::default()
+        .manage(WindowState { delegate })
+        .invoke_handler(|Invoke { message, resolver }| {
+            tauri::async_runtime::spawn(async move {
+                let delegate = message.state_ref().get::<WindowState>().delegate();
+                match message.command() {
+                    "fetch_hash" => {
+                        resolver.resolve(
+                            terms_check::fetch_hash(message.payload().as_str().unwrap())
+                                .await
+                                .unwrap(),
+                        );
+                    }
+                    "initial_data" => {
+                        resolver.resolve(delegate.initial_data().await);
+                    }
+                    "set_general_settings" => {
+                        let settings = message.get_from_payload("generalSettings");
+                        delegate.on_change_general_settings(settings).await;
+                    }
+                    "set_yellow_pages_settings" => {
+                        let settings = message.get_from_payload("yellowPagesSettings");
+                        delegate.on_change_yellow_pages_settings(settings).await;
+                    }
+                    "set_channel_settings" => {
+                        let settings = message.get_from_payload("channelSettings");
+                        delegate.on_change_channel_settings(settings).await;
+                    }
+                    _ => panic!("unknown command"),
+                }
+            });
         })
-        .invoke_handler(generate_handler![
-            fetch_hash,
-            initial_data,
-            set_general_settings,
-            set_yellow_pages_settings,
-            set_channel_settings,
-        ])
-        .on_page_load(on_page_load)
+        .on_page_load(|window: tauri::Window, _: PageLoadPayload| {
+            tauri::async_runtime::spawn(async move {
+                let delegate = (window.state() as tauri::State<'_, WindowState>).delegate();
+                delegate.on_load_page().await;
+            });
+        })
         .any_thread()
         .build(generate_context!())
-        .expect("error while running tauri application");
-    app.run(move |app_handle, _| {
-        if let Ok(command) = command_rx.try_recv() {
-            match command {
-                Command::Emit(event, payload) => {
-                    app_handle.emit_all(event, payload).unwrap();
+        .expect("error while running tauri application")
+        .run(move |app_handle, _| {
+            if let Ok(command) = command_rx.try_recv() {
+                match command {
+                    Command::Emit(event, payload) => {
+                        app_handle.emit_all(event, payload).unwrap();
+                    }
+                    Command::UpdateTitle(title_status) => app_handle
+                        .get_window("main")
+                        .unwrap()
+                        .set_title(&format!(
+                            "{} {}",
+                            app_handle.package_info().name,
+                            title_status,
+                        ))
+                        .unwrap(),
                 }
-                Command::UpdateTitle(title_status) => app_handle
-                    .get_window("main")
-                    .unwrap()
-                    .set_title(&format!(
-                        "{} {}",
-                        app_handle.package_info().name,
-                        title_status,
-                    ))
-                    .unwrap(),
             }
-        }
-    });
+        });
 }
 
 pub struct Window {
@@ -157,39 +148,10 @@ impl Window {
 
     pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
         let command_rx = self.command_rx.lock().unwrap().take().unwrap();
-        let (event_tx, mut event_rx) = mpsc::channel(16);
         let (oneshot_tx, oneshot_rx) = tokio::sync::oneshot::channel();
-        let std_thread_delegate = delegate.clone();
         std::thread::spawn(move || {
-            run_tauri(
-                command_rx,
-                event_tx,
-                Box::new(move || {
-                    let delegate = std_thread_delegate.clone();
-                    Box::pin(async move { delegate.upgrade().unwrap().initial_data().await })
-                }),
-            );
+            run_tauri(delegate, command_rx);
             oneshot_tx.send(()).unwrap();
-        });
-        tokio::spawn(async move {
-            loop {
-                let event = event_rx.recv().await.unwrap();
-                let delegate = delegate.upgrade().unwrap();
-                match event {
-                    Event::PageLoad => delegate.on_load_page().await,
-                    Event::ChangeGeneralSettings(general_settings) => {
-                        delegate.on_change_general_settings(general_settings).await
-                    }
-                    Event::ChangeYellowPagesSettings(yellow_pages_settings) => {
-                        delegate
-                            .on_change_yellow_pages_settings(yellow_pages_settings)
-                            .await
-                    }
-                    Event::ChangeChannelSettings(channel_settings) => {
-                        delegate.on_change_channel_settings(channel_settings).await
-                    }
-                }
-            }
         });
         tokio::spawn(async {
             oneshot_rx.await.unwrap();
