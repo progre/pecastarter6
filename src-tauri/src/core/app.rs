@@ -37,8 +37,8 @@ use crate::{
 pub struct App {
     yp_configs: Vec<YPConfig>,
     settings: Arc<Mutex<Settings>>,
-    ui: Arc<std::sync::Mutex<Ui>>,
-    rtmp_server: Arc<std::sync::Mutex<RtmpServer>>,
+    ui: Arc<Mutex<Ui>>,
+    rtmp_server: Arc<Mutex<RtmpServer>>,
     broadcasting: Arc<Mutex<Broadcasting>>,
 }
 
@@ -54,8 +54,8 @@ impl App {
             settings: Arc::new(Mutex::new(
                 load_settings_and_show_dialog_if_error(show_file_error_dialog).await,
             )),
-            ui: Arc::new(std::sync::Mutex::new(Ui::new())),
-            rtmp_server: Arc::new(std::sync::Mutex::new(RtmpServer::new())),
+            ui: Arc::new(Mutex::new(Ui::new())),
+            rtmp_server: Arc::new(Mutex::new(RtmpServer::new())),
             broadcasting: Arc::new(Mutex::new(Broadcasting::new())),
         }
     }
@@ -64,11 +64,12 @@ impl App {
         let zelf = Arc::new(Self::new().await);
 
         let initial_rtmp = {
-            let mut rtmp_server = zelf.rtmp_server.lock().unwrap();
+            let mut rtmp_server = zelf.rtmp_server.lock().await;
             let weak = Arc::downgrade(&zelf);
             rtmp_server.set_delegate(weak);
-            let listening =
-                zelf.listen_rtmp_if_need(&mut rtmp_server, zelf.settings.lock().await.deref());
+            let listening = zelf
+                .listen_rtmp_if_need(&mut rtmp_server, zelf.settings.lock().await.deref())
+                .await;
             if listening {
                 "listening"
             } else {
@@ -77,7 +78,7 @@ impl App {
         };
 
         let weak = Arc::downgrade(&zelf);
-        let handle = zelf.ui.lock().unwrap().run(
+        let handle = zelf.ui.lock().await.run(
             initial_rtmp.to_owned(),
             zelf.settings.lock().await.general_settings.channel_name[0].clone(),
             weak,
@@ -86,29 +87,34 @@ impl App {
     }
 
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
-        let mut settings = self.settings.lock().await;
-        match check_expired_terms(&self.yp_configs, &mut settings).await {
+        let (result, settings) = {
+            let mut settings = self.settings.lock().await;
+            (
+                check_expired_terms(&self.yp_configs, &mut settings).await,
+                settings.clone(),
+            )
+        };
+        match result {
             Ok(true) => true,
             Ok(false) => {
                 save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
-                self.ui.lock().unwrap().reset_yp_terms(&settings);
-
+                self.ui.lock().await.reset_yp_terms(settings.clone()).await;
                 false
             }
             Err(e) => {
                 warn!("{}", e);
                 let warn = Failure::Warn("YP の利用規約の確認に失敗しました。".to_owned());
-                self.ui.lock().unwrap().notify_failure(&warn);
+                self.ui.lock().await.notify_failure(&warn).await;
 
                 true
             }
         }
     }
 
-    fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
+    async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
         let listening = rtmp_server.listen_rtmp_if_need(&self.yp_configs, settings);
         let status = if listening { "listening" } else { "idle" };
-        self.ui.lock().unwrap().status(status.to_owned());
+        self.ui.lock().await.status(status.to_owned()).await;
         listening
     }
 }
@@ -128,13 +134,14 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.general_settings = general_settings;
 
-        self.listen_rtmp_if_need(self.rtmp_server.lock().unwrap().deref_mut(), &settings);
+        self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
+            .await;
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.ui.lock().unwrap().notify_failure(&err);
+                self.ui.lock().await.notify_failure(&err).await;
                 return;
             }
         }
@@ -148,13 +155,14 @@ impl UiDelegate for App {
         let mut settings = self.settings.lock().await;
         settings.yellow_pages_settings = yellow_pages_settings;
 
-        self.listen_rtmp_if_need(self.rtmp_server.lock().unwrap().deref_mut(), &settings);
+        self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
+            .await;
 
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.ui.lock().unwrap().notify_failure(&err);
+                self.ui.lock().await.notify_failure(&err).await;
                 return;
             }
         }
@@ -172,7 +180,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.ui.lock().unwrap().notify_failure(&err);
+                self.ui.lock().await.notify_failure(&err).await;
                 return;
             }
         }
@@ -194,18 +202,18 @@ impl RtmpListenerDelegate for App {
             match broadcasting.broadcast(&self.yp_configs, &settings).await {
                 Ok(ok) => ok,
                 Err(err) => {
-                    self.ui.lock().unwrap().notify_failure(&err);
+                    self.ui.lock().await.notify_failure(&err).await;
                     return;
                 }
             }
         };
 
-        self.ui.lock().unwrap().status("streaming".to_owned());
+        self.ui.lock().await.status("streaming".to_owned()).await;
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
-        self.ui.lock().unwrap().status("listening".to_owned());
+        self.ui.lock().await.status("listening".to_owned()).await;
 
         {
             let mut broadcasting = self.broadcasting.lock().await;
@@ -216,7 +224,7 @@ impl RtmpListenerDelegate for App {
             {
                 Ok(_) => {}
                 Err(err) => {
-                    self.ui.lock().unwrap().notify_failure(&err);
+                    self.ui.lock().await.notify_failure(&err).await;
                     return;
                 }
             }

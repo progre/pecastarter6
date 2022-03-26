@@ -1,9 +1,9 @@
 use std::sync::{Arc, Mutex, Weak};
 
 use async_trait::async_trait;
-use serde_json::json;
-use tauri::{generate_context, generate_handler, AppHandle, Manager};
-use tokio::{spawn, task::JoinHandle};
+use serde_json::{json, Value};
+use tauri::{generate_context, generate_handler, Manager};
+use tokio::{spawn, sync::mpsc, task::JoinHandle};
 
 use crate::{
     core::entities::{
@@ -93,23 +93,41 @@ pub struct Title {
     pub channel_name: String,
 }
 
+unsafe impl Send for Title {}
+unsafe impl Sync for Title {}
+
+enum Command {
+    PushSettings(Box<PushSettingsCommand>),
+    Notify(NotifyCommand),
+    Status(StatusCommand),
+    UpdateTitle(UpdateTitleCommand),
+}
+
+struct PushSettingsCommand(Settings);
+struct NotifyCommand(Value);
+struct StatusCommand(Value);
+struct UpdateTitleCommand(String);
+
 struct WindowState {
     delegate: Weak<DynSendSyncWindowDelegate>,
 }
 
 pub struct Window {
-    app_handle: Arc<Mutex<Option<AppHandle>>>,
+    tx: mpsc::Sender<Command>,
+    rx: Mutex<Option<mpsc::Receiver<Command>>>,
 }
 
 impl Window {
     pub fn new() -> Self {
+        let (tx, rx) = mpsc::channel(16);
         Self {
-            app_handle: Arc::new(Mutex::new(None)),
+            tx,
+            rx: Mutex::new(Some(rx)),
         }
     }
 
     pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
-        let app_handle = self.app_handle.clone();
+        let mut rx = self.rx.lock().unwrap().take().unwrap();
         spawn(async move {
             let app = tauri::Builder::default()
                 .manage(WindowState { delegate })
@@ -128,50 +146,70 @@ impl Window {
                 .any_thread()
                 .build(generate_context!())
                 .expect("error while running tauri application");
-            *app_handle.lock().unwrap() = Some(app.handle());
-            app.run(|_, _| {});
+            log::trace!("run");
+            app.run(move |app_handle, _| {
+                if let Ok(command) = rx.try_recv() {
+                    match command {
+                        Command::PushSettings(settings_command) => {
+                            app_handle
+                                .emit_all("push_settings", settings_command.0)
+                                .unwrap();
+                        }
+                        Command::Notify(NotifyCommand(json)) => {
+                            app_handle.emit_all("notify", json).unwrap();
+                        }
+                        Command::Status(StatusCommand(json)) => {
+                            app_handle.emit_all("status", json).unwrap();
+                        }
+                        Command::UpdateTitle(UpdateTitleCommand(title_status)) => {
+                            log::trace!("receive send {}", title_status);
+                            app_handle
+                                .get_window("main")
+                                .unwrap()
+                                .set_title(&format!(
+                                    "{} {}",
+                                    app_handle.package_info().name,
+                                    title_status,
+                                ))
+                                .unwrap()
+                        }
+                    }
+                }
+            });
         })
     }
 
-    fn app_handle(&self, callback: impl FnOnce(&AppHandle)) {
-        callback(self.app_handle.lock().unwrap().as_ref().unwrap());
+    pub async fn push_settings(&self, settings: Settings) {
+        self.tx
+            .send(Command::PushSettings(Box::new(PushSettingsCommand(
+                settings,
+            ))))
+            .await
+            .unwrap_or_else(|err| panic!("{}", err));
     }
 
-    pub fn push_settings(&self, settings: &Settings) {
-        self.app_handle(|app_handle| {
-            app_handle.emit_all("push_settings", settings).unwrap();
+    pub async fn notify(&self, level: &str, message: &str) {
+        let json = json!({
+            "level": level,
+            "message": message
         });
+        self.tx
+            .send(Command::Notify(NotifyCommand(json)))
+            .await
+            .unwrap_or_else(|err| panic!("{}", err));
     }
 
-    pub fn notify(&self, level: &str, message: &str) {
-        self.app_handle(|app_handle| {
-            let json = json!({
-                "level": level,
-                "message": message
-            });
-            app_handle.emit_all("notify", json).unwrap();
-        });
+    pub async fn status(&self, rtmp: &str) {
+        let json = json!({ "rtmp": rtmp });
+        self.tx
+            .send(Command::Status(StatusCommand(json)))
+            .await
+            .unwrap_or_else(|err| panic!("{}", err));
     }
 
-    pub fn status(&self, rtmp: &str) {
-        self.app_handle(|app_handle| {
-            let json = json!({ "rtmp": rtmp });
-
-            app_handle.emit_all("status", json).unwrap();
-        });
-    }
-
-    pub fn update_title(&self, title_status: &str) {
-        self.app_handle(|app_handle| {
-            app_handle
-                .get_window("main")
-                .unwrap()
-                .set_title(&format!(
-                    "{} {}",
-                    app_handle.package_info().name,
-                    title_status,
-                ))
-                .unwrap()
-        });
+    pub fn update_title(&self, title_status: String) {
+        self.tx
+            .try_send(Command::UpdateTitle(UpdateTitleCommand(title_status)))
+            .unwrap_or_else(|err| panic!("{}", err));
     }
 }
