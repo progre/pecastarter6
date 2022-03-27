@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex, Weak};
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
-use tauri::{generate_context, Invoke, InvokeMessage, Manager, PageLoadPayload};
-use tokio::{sync::mpsc, task::JoinHandle};
+use tauri::{generate_context, AppHandle, Invoke, InvokeMessage, Manager, PageLoadPayload};
+use tokio::task::JoinHandle;
 
 use crate::{
     core::entities::{
@@ -29,7 +29,7 @@ use crate::{
 
 #[async_trait]
 pub trait WindowDelegate {
-    async fn on_load_page(&self);
+    fn on_load_page(&self);
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings);
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
@@ -46,11 +46,6 @@ impl WindowState {
     fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
         self.delegate.upgrade().unwrap()
     }
-}
-
-enum Command {
-    Emit(&'static str, Value),
-    UpdateTitle(String),
 }
 
 #[async_trait]
@@ -70,7 +65,7 @@ impl InvokeMessageExt for InvokeMessage {
     }
 }
 
-fn run_tauri(delegate: Weak<DynSendSyncWindowDelegate>, mut command_rx: mpsc::Receiver<Command>) {
+fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
     tauri::Builder::default()
         .manage(WindowState { delegate })
         .invoke_handler(|Invoke { message, resolver }| {
@@ -104,53 +99,32 @@ fn run_tauri(delegate: Weak<DynSendSyncWindowDelegate>, mut command_rx: mpsc::Re
             });
         })
         .on_page_load(|window: tauri::Window, _: PageLoadPayload| {
-            tauri::async_runtime::spawn(async move {
-                let delegate = (window.state() as tauri::State<'_, WindowState>).delegate();
-                delegate.on_load_page().await;
-            });
+            let delegate = (window.state() as tauri::State<'_, WindowState>).delegate();
+            delegate.on_load_page();
         })
         .any_thread()
         .build(generate_context!())
         .expect("error while running tauri application")
-        .run(move |app_handle, _| {
-            if let Ok(command) = command_rx.try_recv() {
-                match command {
-                    Command::Emit(event, payload) => {
-                        app_handle.emit_all(event, payload).unwrap();
-                    }
-                    Command::UpdateTitle(title_status) => app_handle
-                        .get_window("main")
-                        .unwrap()
-                        .set_title(&format!(
-                            "{} {}",
-                            app_handle.package_info().name,
-                            title_status,
-                        ))
-                        .unwrap(),
-                }
-            }
-        });
 }
 
 pub struct Window {
-    command_tx: mpsc::Sender<Command>,
-    command_rx: Mutex<Option<mpsc::Receiver<Command>>>,
+    app_handle: Arc<Mutex<Option<AppHandle>>>,
 }
 
 impl Window {
     pub fn new() -> Self {
-        let (command_tx, command_rx) = mpsc::channel(16);
         Self {
-            command_tx,
-            command_rx: Mutex::new(Some(command_rx)),
+            app_handle: Arc::new(Mutex::new(None)),
         }
     }
 
     pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
-        let command_rx = self.command_rx.lock().unwrap().take().unwrap();
         let (oneshot_tx, oneshot_rx) = tokio::sync::oneshot::channel();
+        let app_handle = self.app_handle.clone();
         std::thread::spawn(move || {
-            run_tauri(delegate, command_rx);
+            let app = build_app(delegate);
+            *app_handle.lock().unwrap() = Some(app.app_handle());
+            app.run(|_, _| {});
             oneshot_tx.send(()).unwrap();
         });
         tokio::spawn(async {
@@ -158,38 +132,48 @@ impl Window {
         })
     }
 
-    pub async fn push_settings(&self, settings: Settings) {
-        self.send(Command::Emit(
-            "push_settings",
-            serde_json::to_value(settings).unwrap(),
-        ))
-        .await;
+    pub fn push_settings(&self, settings: Settings) {
+        self.send("push_settings", serde_json::to_value(settings).unwrap());
     }
 
-    pub async fn notify(&self, level: &str, message: &str) {
-        self.send(Command::Emit(
+    pub fn notify(&self, level: &str, message: &str) {
+        self.send(
             "notify",
             json!({
                 "level": level,
                 "message": message
             }),
-        ))
-        .await;
+        );
     }
 
-    pub async fn set_rtmp(&self, rtmp: &str) {
-        self.send(Command::Emit("status", json!({ "rtmp": rtmp })))
-            .await;
+    pub fn set_rtmp(&self, rtmp: &str) {
+        self.send("status", json!({ "rtmp": rtmp }));
     }
 
-    pub async fn set_title_status(&self, title_status: String) {
-        self.send(Command::UpdateTitle(title_status)).await;
+    pub fn set_title_status(&self, title_status: String) {
+        self.app_handle(|app_handle| {
+            app_handle
+                .get_window("main")
+                .unwrap()
+                .set_title(&format!(
+                    "{} {}",
+                    app_handle.package_info().name,
+                    title_status,
+                ))
+                .unwrap();
+        });
     }
 
-    async fn send(&self, command: Command) {
-        self.command_tx
-            .send(command)
-            .await
-            .unwrap_or_else(|err| panic!("{}", err));
+    fn send(&self, event: &str, payload: Value) {
+        self.app_handle(|app_handle| {
+            app_handle.emit_all(event, payload).unwrap();
+        });
+    }
+
+    fn app_handle(&self, callback: impl FnOnce(&AppHandle)) {
+        let app_handle_mutex_guard = self.app_handle.lock().unwrap();
+        if let Some(app_handle) = app_handle_mutex_guard.as_ref() {
+            callback(app_handle);
+        }
     }
 }

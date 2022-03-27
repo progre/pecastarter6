@@ -59,9 +59,9 @@ impl WindowDelegateImpl {
 
 #[async_trait]
 impl WindowDelegate for WindowDelegateImpl {
-    async fn on_load_page(&self) {
+    fn on_load_page(&self) {
         let title_status = self.title.lock().unwrap().to_string();
-        self.window.set_title_status(title_status).await;
+        self.window.set_title_status(title_status);
     }
 
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
@@ -125,11 +125,11 @@ impl Ui {
         self.window().unwrap().run(weak)
     }
 
-    pub async fn notify_failure(&self, failure: &Failure) {
+    pub fn notify_failure(&self, failure: &Failure) {
         match failure {
             Failure::Warn(message) => {
                 warn!("{:?}", failure);
-                self.notify_warn(message).await;
+                self.notify_warn(message);
             }
             Failure::Error(message) => {
                 error!("{:?}", failure);
@@ -147,45 +147,41 @@ impl Ui {
         }
     }
 
-    pub async fn reset_yp_terms(&self, settings: Settings) {
+    pub fn reset_yp_terms(&self, settings: Settings) {
         if let Some(x) = self.window() {
-            x.push_settings(settings).await;
+            x.push_settings(settings);
         }
-        self.notify_error("YP の利用規約が変更されました。再度確認してください。")
-            .await;
+        self.notify_error("YP の利用規約が変更されました。再度確認してください。");
     }
 
-    pub async fn set_rtmp(&self, rtmp: String) {
+    pub fn set_rtmp(&self, rtmp: String) {
         if let Some(window_delegate_impl) = &self.window_delegate_impl {
-            window_delegate_impl.window.set_rtmp(&rtmp).await;
+            window_delegate_impl.window.set_rtmp(&rtmp);
             let title_status = {
                 let title = &mut window_delegate_impl.title.lock().unwrap();
                 title.rtmp = rtmp;
                 title.to_string()
             };
-            window_delegate_impl
-                .window
-                .set_title_status(title_status)
-                .await;
+            window_delegate_impl.window.set_title_status(title_status);
         }
     }
 
-    async fn notify_warn(&self, message: &str) {
+    fn notify_warn(&self, message: &str) {
         if let Some(x) = self.window() {
-            x.notify("warn", message).await
+            x.notify("warn", message)
         }
     }
 
-    async fn notify_error(&self, message: &str) {
+    fn notify_error(&self, message: &str) {
         if let Some(x) = self.window() {
-            x.notify("error", message).await
+            x.notify("error", message)
         }
     }
 
     #[allow(dead_code)]
-    async fn notify_fatal(&self, message: &str) {
+    fn notify_fatal(&self, message: &str) {
         if let Some(x) = self.window() {
-            x.notify("fatal", message).await
+            x.notify("fatal", message)
         }
     }
 }

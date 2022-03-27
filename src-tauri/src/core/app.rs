@@ -98,13 +98,13 @@ impl App {
             Ok(true) => true,
             Ok(false) => {
                 save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
-                self.ui.lock().await.reset_yp_terms(settings.clone()).await;
+                self.ui.lock().await.reset_yp_terms(settings.clone());
                 false
             }
             Err(e) => {
                 warn!("{}", e);
                 let warn = Failure::Warn("YP の利用規約の確認に失敗しました。".to_owned());
-                self.ui.lock().await.notify_failure(&warn).await;
+                self.ui.lock().await.notify_failure(&warn);
 
                 true
             }
@@ -114,7 +114,7 @@ impl App {
     async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
         let listening = rtmp_server.listen_rtmp_if_need(&self.yp_configs, settings);
         let status = if listening { "listening" } else { "idle" };
-        self.ui.lock().await.set_rtmp(status.to_owned()).await;
+        self.ui.lock().await.set_rtmp(status.to_owned());
         listening
     }
 }
@@ -141,7 +141,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.ui.lock().await.notify_failure(&err).await;
+                self.ui.lock().await.notify_failure(&err);
                 return;
             }
         }
@@ -162,7 +162,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.ui.lock().await.notify_failure(&err).await;
+                self.ui.lock().await.notify_failure(&err);
                 return;
             }
         }
@@ -180,7 +180,7 @@ impl UiDelegate for App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, &settings).await;
             if let Some(err) = res.err() {
-                self.ui.lock().await.notify_failure(&err).await;
+                self.ui.lock().await.notify_failure(&err);
                 return;
             }
         }
@@ -202,18 +202,18 @@ impl RtmpListenerDelegate for App {
             match broadcasting.broadcast(&self.yp_configs, &settings).await {
                 Ok(ok) => ok,
                 Err(err) => {
-                    self.ui.lock().await.notify_failure(&err).await;
+                    self.ui.lock().await.notify_failure(&err);
                     return;
                 }
             }
         };
 
-        self.ui.lock().await.set_rtmp("streaming".to_owned()).await;
+        self.ui.lock().await.set_rtmp("streaming".to_owned());
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
-        self.ui.lock().await.set_rtmp("listening".to_owned()).await;
+        self.ui.lock().await.set_rtmp("listening".to_owned());
 
         {
             let mut broadcasting = self.broadcasting.lock().await;
@@ -224,7 +224,7 @@ impl RtmpListenerDelegate for App {
             {
                 Ok(_) => {}
                 Err(err) => {
-                    self.ui.lock().await.notify_failure(&err).await;
+                    self.ui.lock().await.notify_failure(&err);
                     return;
                 }
             }
