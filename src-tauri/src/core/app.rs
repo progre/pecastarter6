@@ -78,11 +78,16 @@ impl App {
         };
 
         let weak = Arc::downgrade(&zelf);
-        let handle = zelf.ui.lock().await.run(
-            initial_rtmp.to_owned(),
-            zelf.settings.lock().await.general_settings.channel_name[0].clone(),
-            weak,
-        ); // release ui lock
+        let handle = zelf
+            .ui
+            .lock()
+            .await
+            .run(
+                initial_rtmp.to_owned(),
+                zelf.settings.lock().await.general_settings.channel_name[0].clone(),
+                weak,
+            )
+            .await;
         handle.await.unwrap(); // long long awaiting
     }
 

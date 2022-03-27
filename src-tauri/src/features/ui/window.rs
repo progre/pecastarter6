@@ -108,27 +108,28 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
 }
 
 pub struct Window {
-    app_handle: Arc<Mutex<Option<AppHandle>>>,
+    app_handle: Mutex<Option<AppHandle>>,
 }
 
 impl Window {
     pub fn new() -> Self {
         Self {
-            app_handle: Arc::new(Mutex::new(None)),
+            app_handle: Mutex::new(None),
         }
     }
 
-    pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
-        let (oneshot_tx, oneshot_rx) = tokio::sync::oneshot::channel();
-        let app_handle = self.app_handle.clone();
+    pub async fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
+        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+        let (stop_tx, stop_rx) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
             let app = build_app(delegate);
-            *app_handle.lock().unwrap() = Some(app.app_handle());
+            start_tx.send(app.app_handle()).unwrap();
             app.run(|_, _| {});
-            oneshot_tx.send(()).unwrap();
+            stop_tx.send(()).unwrap();
         });
+        *self.app_handle.lock().unwrap() = Some(start_rx.await.unwrap());
         tokio::spawn(async {
-            oneshot_rx.await.unwrap();
+            stop_rx.await.unwrap();
         })
     }
 

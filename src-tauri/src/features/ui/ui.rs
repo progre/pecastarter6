@@ -107,7 +107,7 @@ impl Ui {
         self.window_delegate_impl.as_ref().map(|x| &x.window)
     }
 
-    pub fn run(
+    pub async fn run(
         &mut self,
         initial_rtmp: String,
         initial_channel_name: String,
@@ -122,7 +122,7 @@ impl Ui {
             ui_delegate: delegate,
         }));
         let weak = Arc::downgrade(self.window_delegate_impl.as_ref().unwrap());
-        self.window().unwrap().run(weak)
+        self.window().unwrap().run(weak).await
     }
 
     pub fn notify_failure(&self, failure: &Failure) {
