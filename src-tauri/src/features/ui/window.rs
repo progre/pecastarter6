@@ -73,11 +73,8 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                 let delegate = message.state_ref().get::<WindowState>().delegate();
                 match message.command() {
                     "fetch_hash" => {
-                        resolver.resolve(
-                            terms_check::fetch_hash(message.payload().as_str().unwrap())
-                                .await
-                                .unwrap(),
-                        );
+                        let url = message.payload().get("url").unwrap().as_str().unwrap();
+                        resolver.resolve(terms_check::fetch_hash(url).await.unwrap());
                     }
                     "initial_data" => {
                         resolver.resolve(delegate.initial_data().await);
