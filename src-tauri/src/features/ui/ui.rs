@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex, MutexGuard, Weak};
 
 use async_trait::async_trait;
 use log::{error, warn};
@@ -43,7 +43,7 @@ impl ToString for Title {
 }
 
 struct WindowDelegateImpl {
-    pub window: Window,
+    pub window: Mutex<Window>,
     pub title: Mutex<Title>,
     ui_delegate: Weak<DynSendSyncUiDelegate>,
 }
@@ -61,7 +61,7 @@ impl WindowDelegateImpl {
 impl WindowDelegate for WindowDelegateImpl {
     fn on_load_page(&self) {
         let title_status = self.title.lock().unwrap().to_string();
-        self.window.set_title_status(title_status);
+        self.window.lock().unwrap().set_title_status(title_status);
     }
 
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
@@ -103,8 +103,10 @@ impl Ui {
         }
     }
 
-    fn window(&self) -> Option<&Window> {
-        self.window_delegate_impl.as_ref().map(|x| &x.window)
+    fn window(&self) -> Option<MutexGuard<Window>> {
+        self.window_delegate_impl
+            .as_ref()
+            .map(|x| x.window.lock().unwrap())
     }
 
     pub async fn run(
@@ -118,7 +120,7 @@ impl Ui {
                 rtmp: initial_rtmp,
                 channel_name: initial_channel_name,
             }),
-            window: Window::new(),
+            window: Mutex::new(Window::new()),
             ui_delegate: delegate,
         }));
         let weak = Arc::downgrade(self.window_delegate_impl.as_ref().unwrap());
@@ -156,13 +158,14 @@ impl Ui {
 
     pub fn set_rtmp(&self, rtmp: String) {
         if let Some(window_delegate_impl) = &self.window_delegate_impl {
-            window_delegate_impl.window.set_rtmp(&rtmp);
+            let window = window_delegate_impl.window.lock().unwrap();
+            window.set_rtmp(&rtmp);
             let title_status = {
                 let title = &mut window_delegate_impl.title.lock().unwrap();
                 title.rtmp = rtmp;
                 title.to_string()
             };
-            window_delegate_impl.window.set_title_status(title_status);
+            window.set_title_status(title_status);
         }
     }
 

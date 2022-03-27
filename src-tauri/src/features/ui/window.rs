@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
@@ -108,17 +108,15 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
 }
 
 pub struct Window {
-    app_handle: Mutex<Option<AppHandle>>,
+    app_handle: Option<AppHandle>,
 }
 
 impl Window {
     pub fn new() -> Self {
-        Self {
-            app_handle: Mutex::new(None),
-        }
+        Self { app_handle: None }
     }
 
-    pub async fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
+    pub async fn run(&mut self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let (stop_tx, stop_rx) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
@@ -127,7 +125,7 @@ impl Window {
             app.run(|_, _| {});
             stop_tx.send(()).unwrap();
         });
-        *self.app_handle.lock().unwrap() = Some(start_rx.await.unwrap());
+        self.app_handle = Some(start_rx.await.unwrap());
         tokio::spawn(async {
             stop_rx.await.unwrap();
         })
@@ -152,7 +150,7 @@ impl Window {
     }
 
     pub fn set_title_status(&self, title_status: String) {
-        self.app_handle(|app_handle| {
+        if let Some(app_handle) = &self.app_handle {
             app_handle
                 .get_window("main")
                 .unwrap()
@@ -162,19 +160,12 @@ impl Window {
                     title_status,
                 ))
                 .unwrap();
-        });
+        }
     }
 
     fn send(&self, event: &str, payload: Value) {
-        self.app_handle(|app_handle| {
+        if let Some(app_handle) = &self.app_handle {
             app_handle.emit_all(event, payload).unwrap();
-        });
-    }
-
-    fn app_handle(&self, callback: impl FnOnce(&AppHandle)) {
-        let app_handle_mutex_guard = self.app_handle.lock().unwrap();
-        if let Some(app_handle) = app_handle_mutex_guard.as_ref() {
-            callback(app_handle);
         }
     }
 }
