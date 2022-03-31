@@ -47,6 +47,7 @@ dependencies = [
  "env_logger",
  "futures",
  "log",
+ "nipper",
  "once_cell",
  "regex",
  "reqwest",
@@ -1939,6 +1940,19 @@ name = "new_debug_unreachable"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
+
+[[package]]
+name = "nipper"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "761382864693f4bb171abf9e8de181a320b00464a83a9a5071059057b1fe0116"
+dependencies = [
+ "cssparser",
+ "html5ever",
+ "markup5ever",
+ "selectors",
+ "tendril",
+]
 
 [[package]]
 name = "nix"

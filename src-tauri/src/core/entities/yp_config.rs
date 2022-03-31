@@ -8,6 +8,7 @@ pub struct YPConfig {
     pub name: String,
     #[serde(rename = "termsURL")]
     pub terms_url: String,
+    pub terms_selector: Option<String>,
     #[serde(default)]
     pub ignore_terms_check: bool,
     pub host: String,

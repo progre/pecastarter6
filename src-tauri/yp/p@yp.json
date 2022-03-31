@@ -1,6 +1,7 @@
 {
   "name": "p@ YP",
   "termsURL": "https://p-at.net/terms",
+  "termsSelector": "#__next",
   "host": "root.p-at.net",
   "supportIpv6": true,
   "prefixHeader": "pp",

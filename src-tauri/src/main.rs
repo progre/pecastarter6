@@ -10,7 +10,7 @@ use crate::core::app::App;
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("RUST_LOG", "trace");
+    std::env::set_var("RUST_LOG", "app=trace");
     env_logger::init();
 
     App::run().await;

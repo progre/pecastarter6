@@ -81,6 +81,7 @@ function EachYellowPagesSettingsView(props: {
           open(termsURL);
           const termsHash: string = await invoke('fetch_hash', {
             url: termsURL,
+            selector: currentYPConfig?.termsSelector,
           });
           setReadedTerms(termsHash);
         }}

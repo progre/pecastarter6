@@ -1,12 +1,22 @@
 use crate::core::entities::{settings::Settings, yp_config::YPConfig};
 
+use nipper::Document;
 use sha2::{Digest, Sha256};
 
-pub async fn fetch_hash(url: &str) -> anyhow::Result<String> {
+pub async fn fetch_hash(url: &str, selector: Option<&str>) -> anyhow::Result<String> {
     let res = reqwest::get(url).await?;
 
     let mut hasher = Sha256::new();
-    hasher.update(res.bytes().await?);
+    let html = res.text().await?;
+    if let Some(selector) = selector {
+        let part = Document::from(&html).select(selector).html();
+        log::trace!("{}", part);
+        let src = part.as_bytes();
+        hasher.update(src);
+    } else {
+        let src = html.as_bytes();
+        hasher.update(src);
+    };
     let result = hasher.finalize();
     let hash = result
         .iter()
@@ -30,11 +40,18 @@ async fn expired_yp_terms<'a>(
         .filter(|host| !host.is_empty())
         .map(|host| yp_configs.iter().find(|x| &x.host == host).unwrap())
         .filter(|yp_config| !yp_config.ignore_terms_check)
-        .map(|yp_config| &yp_config.terms_url as &str)
+        .map(|yp_config| {
+            (
+                &yp_config.terms_url as &str,
+                yp_config.terms_selector.as_ref().map(|x| x as &str),
+            )
+        })
         .collect::<Vec<_>>();
+
     let mut terms_hashes = Vec::new();
-    for yp_terms_url in yp_terms_urls {
-        terms_hashes.push((yp_terms_url, fetch_hash(yp_terms_url).await?));
+    for (yp_terms_url, yp_terms_selector) in yp_terms_urls {
+        let hash = fetch_hash(yp_terms_url, yp_terms_selector).await?;
+        terms_hashes.push((yp_terms_url, hash));
     }
     let updated_terms = terms_hashes
         .into_iter()
