@@ -1,7 +1,18 @@
 import { css } from '@emotion/react';
-import { TextField } from '@fluentui/react';
+import {
+  DefaultButton,
+  IRefObject,
+  ITooltipHost,
+  SpinButton,
+  TextField,
+  TooltipDelay,
+  TooltipHost,
+  TooltipOverflowMode,
+} from '@fluentui/react';
+import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { invoke } from '@tauri-apps/api';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
 import updatedHistory from '../utils/updatedHistory';
 import HistoryTextField from './molecules/HistoryTextField';
@@ -31,6 +42,14 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
     setState((state) => ({ ...state, ...newState }));
   };
 
+  const id = `_${(Math.random() * Number.MAX_SAFE_INTEGER) | 0}`;
+
+  const serverForObs = `rtmp://localhost${
+    state.rtmpListenPort === 1935 ? '' : `:${state.rtmpListenPort}`
+  }/live/livestream`;
+
+  const ref = useRef<ITooltipHost>();
+
   return (
     <div
       css={css`
@@ -40,15 +59,6 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
       `}
       onBlur={onBlur}
     >
-      <TextField
-        label="PeerCastStation の通信用 TCP ポート番号"
-        type="number"
-        max={65535}
-        min={1}
-        required
-        value={String(state.peerCastPort)}
-        onChange={(_e, newValue) => update({ peerCastPort: Number(newValue) })}
-      />
       <HistoryTextField
         label="チャンネル名"
         required
@@ -56,17 +66,54 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
         value={state.workingChannelName}
         onChange={(value) => update({ workingChannelName: value })}
       />
-      <TextField
+      <SpinButton
         label="PeerCastStation の通信用 TCP ポート番号"
-        type="number"
         max={65535}
         min={1}
-        required
+        value={String(state.peerCastPort)}
+        onChange={(_e, newValue) => update({ peerCastPort: Number(newValue) })}
+      />
+      <SpinButton
+        label="PeCa Starter の RTMP 待ち受け TCP ポート番号"
+        max={65535}
+        min={1}
+        css={css`
+          margin-top: 24px;
+        `}
         value={String(state.rtmpListenPort)}
         onChange={(_e, newValue) =>
           update({ rtmpListenPort: Number(newValue) })
         }
       />
+      <div
+        css={css`
+          display: flex;
+          align-items: end;
+        `}
+      >
+        <TextField
+          css={css`
+            flex-grow: 1;
+          `}
+          label="OBS にカスタムサーバーとして設定する値"
+          readOnly
+          value={serverForObs}
+        />
+        <TooltipHost
+          content="Copied"
+          overflowMode={TooltipOverflowMode.Self}
+          componentRef={ref as IRefObject<ITooltipHost>}
+        >
+          <DefaultButton
+            text="Copy"
+            iconProps={{ iconName: 'copy' }}
+            onClick={() => {
+              navigator.clipboard.writeText(serverForObs);
+              ref.current!!.show();
+            }}
+          />
+        </TooltipHost>
+      </div>
     </div>
   );
 }

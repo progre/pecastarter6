@@ -21,7 +21,6 @@ function EachYellowPagesSettingsView(props: {
   onChange(value: EachYellowPagesSettings): void;
   onChangeAgreeTerms(url: string, hash: string | null): void;
 }): JSX.Element {
-  const id = `_${(Math.random() * Number.MAX_SAFE_INTEGER) | 0}`;
   const currentYPConfig = props.ypConfigs.find(
     (x) => x.host === props.value.host
   );

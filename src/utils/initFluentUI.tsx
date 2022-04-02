@@ -1,6 +1,11 @@
 import { registerIcons } from '@fluentui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import {
+  faCheck,
+  faChevronDown,
+  faChevronUp,
+  faCopy,
+} from '@fortawesome/free-solid-svg-icons';
 import { loadTheme, createTheme } from '@fluentui/react';
 
 export default function initFluentUI() {
@@ -10,8 +15,11 @@ export default function initFluentUI() {
   // opt-out icons
   registerIcons({
     icons: {
-      Checkmark: <FontAwesomeIcon icon={faCheck} />,
-      Chevrondown: <FontAwesomeIcon icon={faChevronDown} />,
+      checkmark: <FontAwesomeIcon icon={faCheck} />,
+      chevrondown: <FontAwesomeIcon icon={faChevronDown} />,
+      chevrondownsmall: <FontAwesomeIcon icon={faChevronDown} />,
+      chevronupsmall: <FontAwesomeIcon icon={faChevronUp} />,
+      copy: <FontAwesomeIcon icon={faCopy} />,
     },
   });
 }
