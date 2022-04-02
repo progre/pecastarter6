@@ -46,8 +46,9 @@ export default function App(props: {
     const statusPromise = listen('status', (ev: Event<Status>) => {
       setStatus(ev.payload);
     });
-    const closeRequestedPromise: Promise<() => Promise<void>> =
-      appWindow.listen('tauri://close-requested', async () => {
+    const closeRequestedPromise = appWindow.listen(
+      'tauri://close-requested',
+      async () => {
         if (
           status.rtmp !== 'streaming' ||
           (await confirm('アプリを終了するとエンコードが停止します。'))
@@ -58,7 +59,8 @@ export default function App(props: {
             .focus();
           appWindow.close();
         }
-      });
+      }
+    );
     return () => {
       notifyPromise.then((unlistenFn) => unlistenFn());
       pushSettingsPromise.then((unlistenFn) => unlistenFn());

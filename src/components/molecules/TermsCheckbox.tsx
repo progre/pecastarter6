@@ -1,4 +1,5 @@
 import { css } from '@emotion/react';
+import { Checkbox } from '@fluentui/react';
 
 export default function TermsCheckbox(props: {
   termsURL: string | null;
@@ -7,35 +8,37 @@ export default function TermsCheckbox(props: {
   onClickReadTerms(): void;
   onChangeAgreeTerms(value: boolean): void;
 }): JSX.Element {
-  const id = `_${(Math.random() * Number.MAX_SAFE_INTEGER) | 0}`;
-
   return (
-    <div>
-      <input
-        id={id}
-        type="checkbox"
-        disabled={props.termsURL == null || (!props.agreed && !props.readed)}
-        checked={props.agreed}
-        onChange={(e) => props.onChangeAgreeTerms(e.target.checked)}
-      />
-      <label
-        htmlFor={id}
-        css={css`
-          padding-left: 0.25em;
-          color: ${props.termsURL == null ? 'lightgray' : 'inherit'};
-        `}
-      >
-        <a
-          href={props.termsURL == null ? undefined : ''}
-          onClick={async (e) => {
-            e.preventDefault();
-            props.onClickReadTerms();
-          }}
+    <Checkbox
+      onRenderLabel={() => (
+        <div
+          css={css`
+            margin-left: 4px;
+          `}
         >
-          規約
-        </a>{' '}
-        を確認し、同意した
-      </label>
-    </div>
+          <a
+            href={props.termsURL == null ? undefined : ''}
+            onClick={async (e) => {
+              e.preventDefault();
+              props.onClickReadTerms();
+            }}
+          >
+            規約
+          </a>
+          <span
+            style={{
+              marginLeft: '0.25em',
+              cursor: 'default',
+              pointerEvents: 'none',
+            }}
+          >
+            を確認し、同意した
+          </span>
+        </div>
+      )}
+      disabled={props.termsURL == null || (!props.agreed && !props.readed)}
+      checked={props.agreed}
+      onChange={(_e, checked) => props.onChangeAgreeTerms(checked == true)}
+    />
   );
 }

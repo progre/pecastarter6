@@ -1,8 +1,9 @@
 import { css } from '@emotion/react';
+import { Dropdown, ResponsiveMode } from '@fluentui/react';
 import YPConfig from '../../entities/YPConfig';
 
 export default function YPSelect(props: {
-  id: string;
+  label: string;
   ypConfigs: readonly YPConfig[];
   host: string;
   usedHostForIPV4?: string;
@@ -10,36 +11,51 @@ export default function YPSelect(props: {
   onChange(host: string): void;
 }): JSX.Element {
   return (
-    <select
-      id={props.id}
+    <Dropdown
       css={css`
-        flex-grow: 1;
-        color: ${!props.conflict ? 'inherit' : '#ff2800'};
+        display: flex;
+        > div {
+          margin-left: 8px;
+          flex-grow: 1;
+        }
       `}
-      value={props.ypConfigs.findIndex((x) => x.host === props.host)}
-      onChange={(e) =>
-        props.onChange(props.ypConfigs[Number(e.target.value)]?.host ?? '')
-      }
-    >
-      <option
-        value={-1}
-        css={css`
-          color: initial;
-        `}
-      >
-        掲載しない
-      </option>
-      {props.ypConfigs.map((x, i) => (
-        <option
-          key={i}
-          value={i}
+      label={props.label}
+      responsiveMode={ResponsiveMode.large}
+      onRenderTitle={(innerProps, defaultRender) => (
+        <div
           css={css`
-            color: ${x.host !== props.usedHostForIPV4 ? 'initial' : '#ff2800'};
+            color: ${!props.conflict ? 'inherit' : '#ff2800'};
           `}
         >
-          {x.name}
-        </option>
-      ))}
-    </select>
+          {defaultRender!!(innerProps)}
+        </div>
+      )}
+      onRenderItem={(item, defaultRender) => (
+        <div
+          key={item!!.key}
+          css={css`
+            button {
+              color: ${item!!.data.host !== props.usedHostForIPV4
+                ? 'initial'
+                : '#ff2800'};
+            }
+          `}
+        >
+          {defaultRender!!(item)}
+        </div>
+      )}
+      options={[
+        { key: -1, text: '掲載しない', data: { host: '' } },
+        ...props.ypConfigs.map((x, i) => ({
+          key: i,
+          text: x.name,
+          data: { host: x.host },
+        })),
+      ]}
+      selectedKey={props.ypConfigs.findIndex((x) => x.host === props.host)}
+      onChange={(_e, option) =>
+        props.onChange(props.ypConfigs[Number(option?.key)]?.host ?? '')
+      }
+    />
   );
 }

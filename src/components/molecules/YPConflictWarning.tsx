@@ -10,6 +10,7 @@ export default function YPConflictWarning(): JSX.Element {
         margin-right: 8px;
         position: absolute;
         font-weight: bold;
+        z-index: 1;
       `}
     >
       IPv4 と同じ YP を指定すると

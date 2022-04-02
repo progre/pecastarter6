@@ -1,9 +1,10 @@
 import { css } from '@emotion/react';
+import { TextField } from '@fluentui/react';
 import { invoke } from '@tauri-apps/api';
 import { useCallback, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
 import updatedHistory from '../utils/updatedHistory';
-import TextField from './molecules/TextField';
+import HistoryTextField from './molecules/HistoryTextField';
 
 type State = Settings & { workingChannelName: string };
 
@@ -35,7 +36,7 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
       css={css`
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 8px;
       `}
       onBlur={onBlur}
     >
@@ -45,27 +46,26 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
         max={65535}
         min={1}
         required
-        value={state.peerCastPort}
-        fitContent
-        onChangeValueAsNumber={(value) => update({ peerCastPort: value })}
+        value={String(state.peerCastPort)}
+        onChange={(_e, newValue) => update({ peerCastPort: Number(newValue) })}
       />
-      <TextField
+      <HistoryTextField
         label="チャンネル名"
-        type="text"
         required
-        value={state.workingChannelName}
         history={state.channelName.filter((x) => x.trim() !== '')}
-        onChangeValue={(value) => update({ workingChannelName: value })}
+        value={state.workingChannelName}
+        onChange={(value) => update({ workingChannelName: value })}
       />
       <TextField
-        label="PeCa Starter の RTMP 待ち受け TCP ポート番号"
+        label="PeerCastStation の通信用 TCP ポート番号"
         type="number"
         max={65535}
         min={1}
         required
-        value={state.rtmpListenPort}
-        fitContent
-        onChangeValueAsNumber={(value) => update({ rtmpListenPort: value })}
+        value={String(state.rtmpListenPort)}
+        onChange={(_e, newValue) =>
+          update({ rtmpListenPort: Number(newValue) })
+        }
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import { css } from '@emotion/react';
 import { invoke } from '@tauri-apps/api';
 import { open } from '@tauri-apps/api/shell';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   EachYellowPagesSettings,
   YellowPagesSettings as Settings,
@@ -45,31 +45,17 @@ function EachYellowPagesSettingsView(props: {
           color: ${!conflict ? 'inherit' : '#ff2800'};
         `}
       >
-        <div
-          css={css`
-            display: flex;
-          `}
-        >
-          <label
-            htmlFor={id}
-            css={css`
-              padding-right: 0.5em;
-            `}
-          >
-            {props.protocol} 掲載 YP:
-          </label>
-          <YPSelect
-            id={id}
-            ypConfigs={props.ypConfigs}
-            usedHostForIPV4={props.usedHostForIPV4}
-            conflict={conflict}
-            host={props.value.host}
-            onChange={(host) => {
-              setReadedTerms(null);
-              props.onChange({ ...props.value, host });
-            }}
-          />
-        </div>
+        <YPSelect
+          label={`${props.protocol} 掲載 YP`}
+          ypConfigs={props.ypConfigs}
+          usedHostForIPV4={props.usedHostForIPV4}
+          conflict={conflict}
+          host={props.value.host}
+          onChange={(host) => {
+            setReadedTerms(null);
+            props.onChange({ ...props.value, host });
+          }}
+        />
         {!conflict ? null : <YPConflictWarning />}
       </div>
       <TermsCheckbox
@@ -105,11 +91,17 @@ function EachYellowPagesSettingsView(props: {
           は利用規約の自動確認に対応していません。規約の更新は自身で確認してください。
         </div>
       )}
-      <YellowPagesPrefixBuilder
-        config={currentYPConfig ?? null}
-        value={props.value}
-        onChange={props.onChange}
-      />
+      <div
+        css={css`
+          margin-top: 20px;
+        `}
+      >
+        <YellowPagesPrefixBuilder
+          config={currentYPConfig ?? null}
+          value={props.value}
+          onChange={props.onChange}
+        />
+      </div>
     </div>
   );
 }

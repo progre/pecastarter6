@@ -3,9 +3,12 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import Settings from './entities/Settings';
 import YPConfig from './entities/YPConfig';
+import initFluentUI from './utils/initFluentUI';
 import App from './App';
 
 import './index.css';
+
+initFluentUI();
 
 async function main() {
   const [ypConfigs, settings] = await invoke('initial_data');

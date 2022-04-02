@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api';
 import { useCallback, useState } from 'react';
 import { ChannelSettings as Settings } from '../entities/Settings';
 import updatedHistory from '../utils/updatedHistory';
-import TextField from './molecules/TextField';
+import HistoryTextField from './molecules/HistoryTextField';
 
 type State = Settings & {
   workingGenre: string;
@@ -46,34 +46,30 @@ export default function ChannelSettings(props: { defaultSettings: Settings }) {
       `}
       onBlur={onBlur}
     >
-      <TextField
+      <HistoryTextField
         label="ジャンル"
-        type="text"
         value={state.workingGenre}
         history={state.genre.filter((x) => x.trim() !== '')}
-        onChangeValue={(value) => update({ workingGenre: value })}
+        onChange={(value) => update({ workingGenre: value })}
       />
-      <TextField
+      <HistoryTextField
         label="概要"
-        type="text"
         value={state.workingDesc}
         history={state.desc.filter((x) => x.trim() !== '')}
-        onChangeValue={(value) => update({ workingDesc: value })}
+        onChange={(value) => update({ workingDesc: value })}
       />
-      <TextField
+      <HistoryTextField
         label="コメント"
-        type="text"
         value={state.workingComment}
         history={state.comment.filter((x) => x.trim() !== '')}
-        onChangeValue={(value) => update({ workingComment: value })}
+        onChange={(value) => update({ workingComment: value })}
       />
-      <TextField
+      <HistoryTextField
         label="コンタクト URL"
-        type="url"
         placeholder="https://"
         value={state.workingContactUrl}
         history={state.contactUrl.filter((x) => x.trim() !== '')}
-        onChangeValue={(value) => update({ workingContactUrl: value })}
+        onChange={(value) => update({ workingContactUrl: value })}
       />
     </div>
   );

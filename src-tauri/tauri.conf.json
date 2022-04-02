@@ -65,8 +65,8 @@
       {
         "label": "main",
         "title": "PeCa Starter",
-        "width": 512,
-        "height": 320,
+        "width": 622,
+        "height": 440,
         "minWidth": 320,
         "minHeight": 240,
         "resizable": true,
