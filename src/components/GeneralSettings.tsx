@@ -5,12 +5,9 @@ import {
   ITooltipHost,
   SpinButton,
   TextField,
-  TooltipDelay,
   TooltipHost,
   TooltipOverflowMode,
 } from '@fluentui/react';
-import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { invoke } from '@tauri-apps/api';
 import { useCallback, useRef, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
