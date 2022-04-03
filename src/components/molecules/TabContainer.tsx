@@ -28,7 +28,11 @@ export default function TabContainer(props: {
     props.initialTab ?? children[0].props.label ?? ''
   );
   return (
-    <Pivot>
+    <Pivot
+      css={css`
+        user-select: none;
+      `}
+    >
       {children?.map((x, i) => (
         <PivotItem key={i} headerText={x.props.label}>
           <div
