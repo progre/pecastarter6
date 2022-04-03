@@ -28,8 +28,8 @@ export default function YellowPagesPrefixBuilder(props: {
       <TextField
         label="名前空間"
         disabled={!supportedParams.includes('namespace')}
-        value={props.value.namespace}
-        onChange={(_e, newValue) => update({ namespace: newValue })}
+        defaultValue={props.value.namespace}
+        onBlur={(e) => update({ namespace: e.target.value })}
       />
       <Dropdown
         label="ポートチェック"
@@ -66,8 +66,8 @@ export default function YellowPagesPrefixBuilder(props: {
         type="url"
         disabled={!supportedParams.includes('icon')}
         placeholder="https://"
-        value={props.value.icon}
-        onChange={(_e, newValue) => update({ icon: newValue })}
+        defaultValue={props.value.icon}
+        onBlur={(e) => update({ icon: e.target.value })}
       />
     </div>
   );
