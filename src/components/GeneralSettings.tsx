@@ -32,7 +32,7 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
       ),
     };
     setState(generalSettings);
-    invoke('set_general_settings', { generalSettings });
+    invoke('put_settings', { generalSettings });
   }, [state]);
 
   const update = (newState: Partial<State>) => {

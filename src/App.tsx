@@ -106,7 +106,7 @@ export default function App(props: {
               setSettings((settings) => ({ ...settings, yellowPagesSettings }))
             }
             onBlur={() => {
-              invoke('set_yellow_pages_settings', {
+              invoke('put_settings', {
                 yellowPagesSettings: settings.yellowPagesSettings,
               });
             }}

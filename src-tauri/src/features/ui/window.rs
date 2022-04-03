@@ -50,18 +50,20 @@ impl WindowState {
 
 #[async_trait]
 trait InvokeMessageExt {
-    fn get_from_payload<T>(&self, param: &str) -> T
+    fn get_from_payload<T>(&self, param: &str) -> Option<T>
     where
         T: DeserializeOwned;
 }
 
 #[async_trait]
 impl InvokeMessageExt for InvokeMessage {
-    fn get_from_payload<T>(&self, param: &str) -> T
+    fn get_from_payload<T>(&self, param: &str) -> Option<T>
     where
         T: DeserializeOwned,
     {
-        serde_json::from_value(self.payload().get(param).unwrap().clone()).unwrap()
+        self.payload()
+            .get(param)
+            .map(|x| serde_json::from_value(x.clone()).unwrap())
     }
 }
 
@@ -81,17 +83,16 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                     "initial_data" => {
                         resolver.resolve(delegate.initial_data().await);
                     }
-                    "set_general_settings" => {
-                        let settings = message.get_from_payload("generalSettings");
-                        delegate.on_change_general_settings(settings).await;
-                    }
-                    "set_yellow_pages_settings" => {
-                        let settings = message.get_from_payload("yellowPagesSettings");
-                        delegate.on_change_yellow_pages_settings(settings).await;
-                    }
-                    "set_channel_settings" => {
-                        let settings = message.get_from_payload("channelSettings");
-                        delegate.on_change_channel_settings(settings).await;
+                    "put_settings" => {
+                        if let Some(settings) = message.get_from_payload("generalSettings") {
+                            delegate.on_change_general_settings(settings).await;
+                        }
+                        if let Some(settings) = message.get_from_payload("yellowPagesSettings") {
+                            delegate.on_change_yellow_pages_settings(settings).await;
+                        }
+                        if let Some(settings) = message.get_from_payload("channelSettings") {
+                            delegate.on_change_channel_settings(settings).await;
+                        }
                     }
                     _ => panic!("unknown command"),
                 }

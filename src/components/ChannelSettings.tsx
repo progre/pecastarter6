@@ -30,7 +30,7 @@ export default function ChannelSettings(props: { defaultSettings: Settings }) {
       contactUrl: updatedHistory(state.workingContactUrl, state.contactUrl, 20),
     };
     setState(channelSettings);
-    invoke('set_channel_settings', { channelSettings });
+    invoke('put_settings', { channelSettings });
   }, [state]);
 
   const update = (newState: Partial<State>) => {
