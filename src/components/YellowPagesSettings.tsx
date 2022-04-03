@@ -37,6 +37,7 @@ function EachYellowPagesSettingsView(props: {
         flex-wrap: wrap;
         flex-direction: column;
         gap: 8px;
+        min-width: 210px;
       `}
     >
       <div
@@ -119,7 +120,7 @@ export default function YellowPagesSettings(props: {
     <div
       css={css`
         display: flex;
-        gap: 16px;
+        gap: 64px 16px;
         flex-wrap: wrap;
       `}
       onBlur={props.onBlur}
