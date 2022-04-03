@@ -17,6 +17,27 @@ const initialStatus: Status = {
   rtmp: 'idle',
 };
 
+function initialTab(ypConfigs: readonly YPConfig[], defaultSettings: Settings) {
+  const doneGeneral = defaultSettings.generalSettings.channelName[0].length > 0;
+
+  const ypSettings = defaultSettings.yellowPagesSettings;
+  const usingHosts = [ypSettings.ipv4, ypSettings.ipv6]
+    .map((x) => x.host)
+    .filter((host) => host.length > 0);
+  const doneYP =
+    usingHosts.length > 0 &&
+    ypConfigs
+      .filter((ypConfig) => usingHosts.includes(ypConfig.host))
+      .map((ypConfig) => ypConfig.termsURL)
+      .every((termsURL) => ypSettings.agreedTerms[termsURL] != null);
+
+  return doneGeneral && doneYP
+    ? 'チャンネル情報'
+    : doneGeneral
+    ? 'YP 設定'
+    : '基本設定';
+}
+
 export default function App(props: {
   ypConfigs: readonly YPConfig[];
   defaultSettings: Settings;
@@ -69,29 +90,11 @@ export default function App(props: {
     };
   }, []);
 
-  const doneGeneral =
-    props.defaultSettings.generalSettings.channelName[0].length > 0;
-
-  const ypSettings = props.defaultSettings.yellowPagesSettings;
-  const usingHosts = [ypSettings.ipv4, ypSettings.ipv6]
-    .map((x) => x.host)
-    .filter((host) => host.length > 0);
-  const doneYP =
-    usingHosts.length > 0 &&
-    props.ypConfigs
-      .filter((ypConfig) => usingHosts.includes(ypConfig.host))
-      .map((ypConfig) => ypConfig.termsURL)
-      .every((termsURL) => ypSettings.agreedTerms[termsURL] != null);
-
-  const initialTab =
-    doneGeneral && doneYP
-      ? 'チャンネル情報'
-      : doneGeneral
-      ? 'YP 設定'
-      : '基本設定';
   return (
     <>
-      <TabContainer initialTab={initialTab}>
+      <TabContainer
+        initialTab={initialTab(props.ypConfigs, props.defaultSettings)}
+      >
         <TabContent label="基本設定">
           <GeneralSettings defaultSettings={settings.generalSettings} />
         </TabContent>
