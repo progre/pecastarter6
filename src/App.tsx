@@ -96,24 +96,32 @@ export default function App(props: {
         initialTab={initialTab(props.ypConfigs, props.defaultSettings)}
       >
         <TabContent label="基本設定">
-          <GeneralSettings defaultSettings={settings.generalSettings} />
+          <GeneralSettings
+            settings={settings.generalSettings}
+            onChange={(generalSettings) => {
+              invoke('put_settings', { generalSettings });
+              setSettings((settings) => ({ ...settings, generalSettings }));
+            }}
+          />
         </TabContent>
         <TabContent label="YP 設定">
           <YellowPagesSettings
             ypConfigs={props.ypConfigs}
             settings={settings.yellowPagesSettings}
-            onChange={(yellowPagesSettings) =>
-              setSettings((settings) => ({ ...settings, yellowPagesSettings }))
-            }
-            onBlur={() => {
-              invoke('put_settings', {
-                yellowPagesSettings: settings.yellowPagesSettings,
-              });
+            onChange={(yellowPagesSettings) => {
+              invoke('put_settings', { yellowPagesSettings });
+              setSettings((settings) => ({ ...settings, yellowPagesSettings }));
             }}
           />
         </TabContent>
         <TabContent label="チャンネル情報">
-          <ChannelSettings defaultSettings={settings.channelSettings} />
+          <ChannelSettings
+            settings={settings.channelSettings}
+            onChange={(channelSettings) => {
+              invoke('put_settings', { channelSettings });
+              setSettings((settings) => ({ ...settings, channelSettings }));
+            }}
+          />
         </TabContent>
       </TabContainer>
       {notifications.length === 0 ? null : (

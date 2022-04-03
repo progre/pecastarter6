@@ -12,13 +12,16 @@ type State = Settings & {
   workingContactUrl: string;
 };
 
-export default function ChannelSettings(props: { defaultSettings: Settings }) {
+export default function ChannelSettings(props: {
+  settings: Settings;
+  onChange(value: Settings): void;
+}) {
   const [state, setState] = useState({
-    ...props.defaultSettings,
-    workingGenre: props.defaultSettings.genre[0],
-    workingDesc: props.defaultSettings.desc[0],
-    workingComment: props.defaultSettings.comment[0],
-    workingContactUrl: props.defaultSettings.contactUrl[0],
+    ...props.settings,
+    workingGenre: props.settings.genre[0],
+    workingDesc: props.settings.desc[0],
+    workingComment: props.settings.comment[0],
+    workingContactUrl: props.settings.contactUrl[0],
   });
 
   const onBlur = useCallback(() => {
@@ -29,8 +32,7 @@ export default function ChannelSettings(props: { defaultSettings: Settings }) {
       comment: updatedHistory(state.workingComment, state.comment, 20),
       contactUrl: updatedHistory(state.workingContactUrl, state.contactUrl, 20),
     };
-    setState(channelSettings);
-    invoke('put_settings', { channelSettings });
+    props.onChange(channelSettings);
   }, [state]);
 
   const update = (newState: Partial<State>) => {

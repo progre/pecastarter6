@@ -110,10 +110,11 @@ export default function YellowPagesSettings(props: {
   ypConfigs: readonly YPConfig[];
   settings: Settings;
   onChange(value: Settings): void;
-  onBlur(): void;
 }) {
+  const [state, setState] = useState<Settings>(props.settings);
+
   const update = (newSettings: Partial<Settings>) => {
-    props.onChange({ ...props.settings, ...newSettings });
+    setState((settings) => ({ ...settings, ...newSettings }));
   };
 
   return (
@@ -123,18 +124,18 @@ export default function YellowPagesSettings(props: {
         gap: 64px 16px;
         flex-wrap: wrap;
       `}
-      onBlur={props.onBlur}
+      onBlur={() => props.onChange(state)}
     >
       <EachYellowPagesSettingsView
         protocol="IPv4"
         ypConfigs={props.ypConfigs}
-        agreedTerms={props.settings.agreedTerms}
-        value={props.settings.ipv4}
+        agreedTerms={state.agreedTerms}
+        value={state.ipv4}
         onChange={(ipv4) => update({ ipv4 })}
         onChangeAgreeTerms={(url, hash) =>
           update({
             agreedTerms: {
-              ...props.settings.agreedTerms,
+              ...state.agreedTerms,
               [url]: hash ?? undefined!!,
             },
           })
@@ -143,14 +144,14 @@ export default function YellowPagesSettings(props: {
       <EachYellowPagesSettingsView
         protocol="IPv6"
         ypConfigs={props.ypConfigs.filter((x) => x.supportIpv6)}
-        usedHostForIPV4={props.settings.ipv4.host}
-        agreedTerms={props.settings.agreedTerms}
-        value={props.settings.ipv6}
+        usedHostForIPV4={state.ipv4.host}
+        agreedTerms={state.agreedTerms}
+        value={state.ipv6}
         onChange={(ipv6) => update({ ipv6 })}
         onChangeAgreeTerms={(url, hash) =>
           update({
             agreedTerms: {
-              ...props.settings.agreedTerms,
+              ...state.agreedTerms,
               [url]: hash ?? undefined!!,
             },
           })

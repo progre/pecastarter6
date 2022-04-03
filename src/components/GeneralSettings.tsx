@@ -8,7 +8,6 @@ import {
   TooltipHost,
   TooltipOverflowMode,
 } from '@fluentui/react';
-import { invoke } from '@tauri-apps/api';
 import { useCallback, useRef, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
 import updatedHistory from '../utils/updatedHistory';
@@ -16,10 +15,13 @@ import HistoryTextField from './molecules/HistoryTextField';
 
 type State = Settings & { workingChannelName: string };
 
-export default function GeneralSettings(props: { defaultSettings: Settings }) {
+export default function GeneralSettings(props: {
+  settings: Settings;
+  onChange(value: Settings): void;
+}) {
   const [state, setState] = useState({
-    ...props.defaultSettings,
-    workingChannelName: props.defaultSettings.channelName[0],
+    ...props.settings,
+    workingChannelName: props.settings.channelName[0],
   });
 
   const onBlur = useCallback(() => {
@@ -31,15 +33,12 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
         5
       ),
     };
-    setState(generalSettings);
-    invoke('put_settings', { generalSettings });
+    props.onChange(generalSettings);
   }, [state]);
 
   const update = (newState: Partial<State>) => {
     setState((state) => ({ ...state, ...newState }));
   };
-
-  const id = `_${(Math.random() * Number.MAX_SAFE_INTEGER) | 0}`;
 
   const serverForObs = `rtmp://localhost${
     state.rtmpListenPort === 1935 ? '' : `:${state.rtmpListenPort}`
