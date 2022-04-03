@@ -94,6 +94,13 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
           `}
           label="OBS にカスタムサーバーとして設定する値"
           readOnly
+          styles={{
+            fieldGroup: {
+              borderRight: 'none',
+              borderTopRightRadius: 0,
+              borderBottomRightRadius: 0,
+            },
+          }}
           value={serverForObs}
         />
         <TooltipHost
@@ -102,6 +109,10 @@ export default function GeneralSettings(props: { defaultSettings: Settings }) {
           componentRef={ref as IRefObject<ITooltipHost>}
         >
           <DefaultButton
+            css={css`
+              border-top-left-radius: 0;
+              border-bottom-left-radius: 0;
+            `}
             text="Copy"
             iconProps={{ iconName: 'copy' }}
             onClick={() => {
