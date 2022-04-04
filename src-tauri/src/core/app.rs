@@ -46,7 +46,7 @@ async fn run_ui(app: &Arc<App>, initial_rtmp: String) -> JoinHandle<()> {
     let weak = Arc::downgrade(app);
     app.ui
         .lock()
-        .await
+        .unwrap()
         .run(initial_rtmp, initial_channel_name, weak)
         .await
 }
@@ -58,22 +58,22 @@ fn show_file_error_dialog(message: &str) {
 
 pub struct App {
     yp_configs: Vec<YPConfig>,
-    settings: Arc<Mutex<Settings>>,
-    ui: Arc<Mutex<Ui>>,
-    rtmp_server: Arc<Mutex<RtmpServer>>,
-    broadcasting: Arc<Mutex<Broadcasting>>,
+    settings: Mutex<Settings>,
+    ui: std::sync::Mutex<Ui>,
+    rtmp_server: Mutex<RtmpServer>,
+    broadcasting: Mutex<Broadcasting>,
 }
 
 impl App {
     async fn new() -> Self {
         Self {
             yp_configs: read_yp_configs_and_show_dialog_if_error(show_file_error_dialog).await,
-            settings: Arc::new(Mutex::new(
+            settings: Mutex::new(
                 load_settings_and_show_dialog_if_error(show_file_error_dialog).await,
-            )),
-            ui: Arc::new(Mutex::new(Ui::new())),
-            rtmp_server: Arc::new(Mutex::new(RtmpServer::new())),
-            broadcasting: Arc::new(Mutex::new(Broadcasting::new())),
+            ),
+            ui: std::sync::Mutex::new(Ui::new()),
+            rtmp_server: Mutex::new(RtmpServer::new()),
+            broadcasting: Mutex::new(Broadcasting::new()),
         }
     }
 
@@ -101,13 +101,13 @@ impl App {
             Ok(true) => true,
             Ok(false) => {
                 save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
-                self.ui.lock().await.reset_yp_terms(settings.clone());
+                self.ui.lock().unwrap().reset_yp_terms(settings.clone());
                 false
             }
             Err(e) => {
                 warn!("{}", e);
                 let warn = Failure::Warn("YP の利用規約の確認に失敗しました。".to_owned());
-                self.ui.lock().await.notify_failure(&warn);
+                self.ui.lock().unwrap().notify_failure(&warn);
 
                 true
             }
@@ -117,7 +117,7 @@ impl App {
     async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
         let listening = rtmp_server.listen_rtmp_if_need(&self.yp_configs, settings);
         let status = if listening { "listening" } else { "idle" };
-        self.ui.lock().await.set_rtmp(status.to_owned());
+        self.ui.lock().unwrap().set_rtmp(status.to_owned());
         listening
     }
 
@@ -126,7 +126,7 @@ impl App {
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, settings).await;
             if let Some(err) = res.err() {
-                self.ui.lock().await.notify_failure(&err);
+                self.ui.lock().unwrap().notify_failure(&err);
                 return;
             }
         }
@@ -191,18 +191,18 @@ impl RtmpListenerDelegate for App {
             let rtmp_conn_port = match broadcasting.broadcast(&self.yp_configs, &settings).await {
                 Ok(ok) => ok,
                 Err(err) => {
-                    self.ui.lock().await.notify_failure(&err);
+                    self.ui.lock().unwrap().notify_failure(&err);
                     return;
                 }
             };
             rtmp_conn_port
         };
-        self.ui.lock().await.set_rtmp("streaming".to_owned());
+        self.ui.lock().unwrap().set_rtmp("streaming".to_owned());
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
-        self.ui.lock().await.set_rtmp("listening".to_owned());
+        self.ui.lock().unwrap().set_rtmp("listening".to_owned());
         {
             let mut broadcasting = self.broadcasting.lock().await;
             let settings = self.settings.lock().await;
@@ -212,7 +212,7 @@ impl RtmpListenerDelegate for App {
             {
                 Ok(_) => {}
                 Err(err) => {
-                    self.ui.lock().await.notify_failure(&err);
+                    self.ui.lock().unwrap().notify_failure(&err);
                     return;
                 }
             }
