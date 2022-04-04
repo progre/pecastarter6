@@ -6,7 +6,7 @@ use std::{
 use async_trait::async_trait;
 use log::warn;
 use tauri::api::dialog;
-use tokio::{net::TcpStream, sync::Mutex};
+use tokio::{net::TcpStream, sync::Mutex, task::JoinHandle};
 
 use crate::{
     core::{
@@ -41,7 +41,7 @@ async fn listen_rtmp_if_need(app: &Arc<App>) -> bool {
         .await
 }
 
-async fn run_ui(app: &Arc<App>, initial_rtmp: String) {
+async fn run_ui(app: &Arc<App>, initial_rtmp: String) -> JoinHandle<()> {
     let initial_channel_name = app.settings.lock().await.general_settings.channel_name[0].clone();
     let weak = Arc::downgrade(app);
     app.ui
@@ -49,8 +49,6 @@ async fn run_ui(app: &Arc<App>, initial_rtmp: String) {
         .await
         .run(initial_rtmp, initial_channel_name, weak)
         .await
-        .await
-        .unwrap();
 }
 
 fn show_file_error_dialog(message: &str) {
@@ -88,7 +86,7 @@ impl App {
             "idle"
         };
 
-        run_ui(&zelf, initial_rtmp.to_owned()).await; // long long awaiting
+        run_ui(&zelf, initial_rtmp.to_owned()).await.await.unwrap(); // long long awaiting
     }
 
     async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
@@ -197,15 +195,15 @@ impl RtmpListenerDelegate for App {
                     return;
                 }
             };
-            self.ui.lock().await.set_rtmp("streaming".to_owned());
             rtmp_conn_port
         };
+        self.ui.lock().await.set_rtmp("streaming".to_owned());
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
+        self.ui.lock().await.set_rtmp("listening".to_owned());
         {
-            self.ui.lock().await.set_rtmp("listening".to_owned());
             let mut broadcasting = self.broadcasting.lock().await;
             let settings = self.settings.lock().await;
             match broadcasting
