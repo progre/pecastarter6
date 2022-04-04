@@ -103,7 +103,7 @@ impl Ui {
         }
     }
 
-    fn window(&self) -> Option<MutexGuard<Window>> {
+    fn lock_window(&self) -> Option<MutexGuard<Window>> {
         self.window_delegate_impl
             .as_ref()
             .map(|x| x.window.lock().unwrap())
@@ -124,7 +124,7 @@ impl Ui {
             ui_delegate: delegate,
         }));
         let weak = Arc::downgrade(self.window_delegate_impl.as_ref().unwrap());
-        self.window().unwrap().run(weak).await
+        self.lock_window().unwrap().run(weak).await
     }
 
     pub fn notify_failure(&self, failure: &Failure) {
@@ -150,7 +150,7 @@ impl Ui {
     }
 
     pub fn reset_yp_terms(&self, settings: Settings) {
-        if let Some(x) = self.window() {
+        if let Some(x) = self.lock_window() {
             x.push_settings(settings);
         }
         self.notify_error("YP の利用規約が変更されました。再度確認してください。");
@@ -170,20 +170,20 @@ impl Ui {
     }
 
     fn notify_warn(&self, message: &str) {
-        if let Some(x) = self.window() {
+        if let Some(x) = self.lock_window() {
             x.notify("warn", message)
         }
     }
 
     fn notify_error(&self, message: &str) {
-        if let Some(x) = self.window() {
+        if let Some(x) = self.lock_window() {
             x.notify("error", message)
         }
     }
 
     #[allow(dead_code)]
     fn notify_fatal(&self, message: &str) {
-        if let Some(x) = self.window() {
+        if let Some(x) = self.lock_window() {
             x.notify("fatal", message)
         }
     }
