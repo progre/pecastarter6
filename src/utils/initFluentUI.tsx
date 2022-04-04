@@ -5,7 +5,7 @@ import {
   faChevronDown,
   faChevronUp,
 } from '@fortawesome/free-solid-svg-icons';
-import { faCopy } from '@fortawesome/free-regular-svg-icons';
+import { faCopy, faFolderOpen } from '@fortawesome/free-regular-svg-icons';
 import { loadTheme, createTheme } from '@fluentui/react';
 
 export default function initFluentUI() {
@@ -20,6 +20,7 @@ export default function initFluentUI() {
       chevrondownsmall: <FontAwesomeIcon icon={faChevronDown} />,
       chevronupsmall: <FontAwesomeIcon icon={faChevronUp} />,
       copy: <FontAwesomeIcon icon={faCopy} />,
+      folder: <FontAwesomeIcon icon={faFolderOpen} />,
     },
   });
 }

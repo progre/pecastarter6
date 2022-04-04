@@ -11,7 +11,9 @@ use tokio::{net::TcpStream, sync::Mutex, task::JoinHandle};
 use crate::{
     core::{
         entities::{
-            settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
+            settings::{
+                ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
+            },
             yp_config::YPConfig,
         },
         utils::{
@@ -26,6 +28,7 @@ use crate::{
             },
             yp_configs::read_yp_configs_and_show_dialog_if_error,
         },
+        logger::LoggerController,
         peercast::broadcasting::Broadcasting,
         rtmp::{rtmp_server::RtmpServer, RtmpListenerDelegate},
         terms_check::check_expired_terms,
@@ -62,6 +65,7 @@ pub struct App {
     ui: std::sync::Mutex<Ui>,
     rtmp_server: Mutex<RtmpServer>,
     broadcasting: Mutex<Broadcasting>,
+    logger_controller: LoggerController,
 }
 
 impl App {
@@ -74,6 +78,7 @@ impl App {
             ui: std::sync::Mutex::new(Ui::new()),
             rtmp_server: Mutex::new(RtmpServer::new()),
             broadcasting: Mutex::new(Broadcasting::new()),
+            logger_controller: LoggerController::new(),
         }
     }
 
@@ -127,11 +132,8 @@ impl App {
             let res = broadcasting.update(&self.yp_configs, settings).await;
             if let Some(err) = res.err() {
                 self.ui.lock().unwrap().notify_failure(&err);
-                return;
             }
         }
-
-        save_settings_and_show_dialog_if_error(settings, show_file_error_dialog).await;
     }
 }
 
@@ -149,6 +151,7 @@ impl UiDelegate for App {
 
         let mut settings = self.settings.lock().await;
         settings.general_settings = general_settings;
+        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
 
         self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
             .await;
@@ -161,6 +164,7 @@ impl UiDelegate for App {
 
         let mut settings = self.settings.lock().await;
         settings.yellow_pages_settings = yellow_pages_settings;
+        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
 
         self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
             .await;
@@ -173,8 +177,39 @@ impl UiDelegate for App {
 
         let mut settings = self.settings.lock().await;
         settings.channel_settings = channel_settings;
+        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
 
         self.update_channel(&settings).await;
+
+        if let Err(err) = self
+            .logger_controller
+            .on_change_channel_settings(&settings.channel_settings)
+            .await
+        {
+            self.ui
+                .lock()
+                .unwrap()
+                .notify_failure(&Failure::Warn(err.to_string()));
+        }
+    }
+
+    async fn on_change_other_settings(&self, other_settings: OtherSettings) {
+        log::trace!("{:?}", other_settings);
+
+        let mut settings = self.settings.lock().await;
+        settings.other_settings = other_settings;
+        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
+
+        if let Err(err) = self
+            .logger_controller
+            .on_change_other_settings(&settings, self.broadcasting.lock().await.is_broadcasting())
+            .await
+        {
+            self.ui
+                .lock()
+                .unwrap()
+                .notify_failure(&Failure::Warn(err.to_string()));
+        }
     }
 }
 
@@ -195,6 +230,13 @@ impl RtmpListenerDelegate for App {
                     return;
                 }
             };
+            if let Err(err) = self.logger_controller.on_broadcast(&settings).await {
+                self.ui
+                    .lock()
+                    .unwrap()
+                    .notify_failure(&Failure::Warn(err.to_string()));
+            }
+
             rtmp_conn_port
         };
         self.ui.lock().unwrap().set_rtmp("streaming".to_owned());
@@ -204,8 +246,15 @@ impl RtmpListenerDelegate for App {
 
         self.ui.lock().unwrap().set_rtmp("listening".to_owned());
         {
-            let mut broadcasting = self.broadcasting.lock().await;
             let settings = self.settings.lock().await;
+            if let Err(err) = self.logger_controller.on_stop_channel().await {
+                self.ui
+                    .lock()
+                    .unwrap()
+                    .notify_failure(&Failure::Warn(err.to_string()));
+            }
+
+            let mut broadcasting = self.broadcasting.lock().await;
             match broadcasting
                 .stop(settings.general_settings.peer_cast_port)
                 .await

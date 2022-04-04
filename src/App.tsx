@@ -12,6 +12,7 @@ import Settings from './entities/Settings';
 import YPConfig from './entities/YPConfig';
 import listenWrapped from './utils/listenWrapped';
 import Status from './entities/Status';
+import OtherSettings from './components/OtherSettings';
 
 const initialStatus: Status = {
   rtmp: 'idle',
@@ -120,6 +121,15 @@ export default function App(props: {
             onChange={(channelSettings) => {
               invoke('put_settings', { channelSettings });
               setSettings((settings) => ({ ...settings, channelSettings }));
+            }}
+          />
+        </TabContent>
+        <TabContent label="その他">
+          <OtherSettings
+            settings={settings.otherSettings}
+            onChange={(otherSettings) => {
+              invoke('put_settings', { otherSettings });
+              setSettings((settings) => ({ ...settings, otherSettings }));
             }}
           />
         </TabContent>

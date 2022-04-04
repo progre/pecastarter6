@@ -73,10 +73,19 @@ impl Default for ChannelSettings {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct OtherSettings {
+    pub log_enabled: bool,
+    pub log_output_directory: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub general_settings: GeneralSettings,
     pub yellow_pages_settings: YellowPagesSettings,
     pub channel_settings: ChannelSettings,
+    #[serde(default)]
+    pub other_settings: OtherSettings,
 }
 
 unsafe impl Send for Settings {}

@@ -8,7 +8,9 @@ use tokio::task::JoinHandle;
 
 use crate::{
     core::entities::{
-        settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
+        settings::{
+            ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
+        },
         yp_config::YPConfig,
     },
     features::terms_check,
@@ -34,6 +36,7 @@ pub trait WindowDelegate {
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings);
+    async fn on_change_other_settings(&self, other_settings: OtherSettings);
 }
 
 type DynSendSyncWindowDelegate = dyn Send + Sync + WindowDelegate;
@@ -92,6 +95,9 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                         }
                         if let Some(settings) = message.get_from_payload("channelSettings") {
                             delegate.on_change_channel_settings(settings).await;
+                        }
+                        if let Some(settings) = message.get_from_payload("otherSettings") {
+                            delegate.on_change_other_settings(settings).await;
                         }
                     }
                     _ => panic!("unknown command"),

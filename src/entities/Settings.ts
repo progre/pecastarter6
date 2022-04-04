@@ -31,8 +31,14 @@ export interface ChannelSettings {
   contactUrl: readonly string[];
 }
 
+export interface OtherSettings {
+  logEnabled: boolean;
+  logOutputDirectory: string;
+}
+
 export default interface Settings {
   generalSettings: GeneralSettings;
   yellowPagesSettings: YellowPagesSettings;
   channelSettings: ChannelSettings;
+  otherSettings: OtherSettings;
 }

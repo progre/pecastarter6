@@ -49,7 +49,8 @@
     },
     "allowlist": {
       "dialog": {
-        "confirm": true
+        "confirm": true,
+        "open": true
       },
       "notification": {
         "all": true

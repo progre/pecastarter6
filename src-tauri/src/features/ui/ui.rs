@@ -7,7 +7,9 @@ use tokio::task::JoinHandle;
 
 use crate::core::{
     entities::{
-        settings::{ChannelSettings, GeneralSettings, Settings, YellowPagesSettings},
+        settings::{
+            ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
+        },
         yp_config::YPConfig,
     },
     utils::failure::Failure,
@@ -21,6 +23,7 @@ pub trait UiDelegate {
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings);
+    async fn on_change_other_settings(&self, other_settings: OtherSettings);
 }
 
 type DynSendSyncUiDelegate = dyn Send + Sync + UiDelegate;
@@ -43,7 +46,7 @@ impl ToString for Title {
 }
 
 struct WindowDelegateImpl {
-    pub window: Mutex<Window>,
+    window: Mutex<Window>,
     pub title: Mutex<Title>,
     ui_delegate: Weak<DynSendSyncUiDelegate>,
 }
@@ -85,6 +88,12 @@ impl WindowDelegate for WindowDelegateImpl {
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings) {
         self.ui_delegate()
             .on_change_channel_settings(channel_settings)
+            .await
+    }
+
+    async fn on_change_other_settings(&self, other_settings: OtherSettings) {
+        self.ui_delegate()
+            .on_change_other_settings(other_settings)
             .await
     }
 }
