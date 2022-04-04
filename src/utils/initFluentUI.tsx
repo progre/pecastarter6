@@ -4,8 +4,8 @@ import {
   faCheck,
   faChevronDown,
   faChevronUp,
-  faCopy,
 } from '@fortawesome/free-solid-svg-icons';
+import { faCopy } from '@fortawesome/free-regular-svg-icons';
 import { loadTheme, createTheme } from '@fluentui/react';
 
 export default function initFluentUI() {
