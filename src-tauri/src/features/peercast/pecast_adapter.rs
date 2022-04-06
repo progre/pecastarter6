@@ -7,6 +7,8 @@ use serde_json::Value;
 
 use crate::core::utils::failure::Failure;
 
+use super::view_xml::ViewXml;
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Info<'a> {
@@ -186,6 +188,21 @@ impl PeCaStAdapter {
         request_rpc(self.port, "stopChannel", Some(params))
             .await
             .map(|_| ())
+    }
+
+    pub async fn view_xml(&self) -> Result<ViewXml, Failure> {
+        let res = reqwest::get(&format!("http://localhost:{}/admin?cmd=viewxml", self.port))
+            .await
+            .map_err(|e| {
+                error!("{}", e);
+                Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
+            })?;
+        let xml = res.text().await.map_err(|e| {
+            error!("{}", e);
+            Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
+        })?;
+
+        Ok(serde_xml_rs::from_str(&xml).unwrap())
     }
 }
 

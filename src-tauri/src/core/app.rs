@@ -85,6 +85,16 @@ impl App {
     pub async fn run() {
         let zelf = Arc::new(Self::new().await);
 
+        {
+            let weak = Arc::downgrade(&zelf);
+            zelf.logger_controller
+                .set_on_error(Box::new(move |failure| {
+                    if let Some(app) = weak.upgrade() {
+                        app.ui.lock().unwrap().notify_failure(&failure);
+                    }
+                }));
+        }
+
         let initial_rtmp = if listen_rtmp_if_need(&zelf).await {
             "listening"
         } else {
@@ -157,6 +167,10 @@ impl UiDelegate for App {
             .await;
 
         self.update_channel(&settings).await;
+
+        self.logger_controller
+            .on_change_general_settings(&settings.general_settings)
+            .await;
     }
 
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings) {
@@ -200,9 +214,17 @@ impl UiDelegate for App {
         settings.other_settings = other_settings;
         save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
 
+        let (is_broadcasting, ipv4_id, ipv6_id) = {
+            let broadcasting = self.broadcasting.lock().await;
+            (
+                broadcasting.is_broadcasting(),
+                broadcasting.ipv4_id().clone(),
+                broadcasting.ipv6_id().clone(),
+            )
+        };
         if let Err(err) = self
             .logger_controller
-            .on_change_other_settings(&settings, self.broadcasting.lock().await.is_broadcasting())
+            .on_change_other_settings(ipv4_id, ipv6_id, &settings, is_broadcasting)
             .await
         {
             self.ui
@@ -230,7 +252,15 @@ impl RtmpListenerDelegate for App {
                     return;
                 }
             };
-            if let Err(err) = self.logger_controller.on_broadcast(&settings).await {
+            if let Err(err) = self
+                .logger_controller
+                .on_broadcast(
+                    broadcasting.ipv4_id().clone(),
+                    broadcasting.ipv6_id().clone(),
+                    &settings,
+                )
+                .await
+            {
                 self.ui
                     .lock()
                     .unwrap()

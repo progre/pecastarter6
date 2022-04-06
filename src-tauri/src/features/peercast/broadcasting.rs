@@ -1,5 +1,6 @@
 use std::num::NonZeroU16;
 
+use getset::Getters;
 use tokio::try_join;
 
 use crate::{
@@ -90,8 +91,11 @@ async fn broadcast<'a>(
         .await
 }
 
+#[derive(Getters)]
 pub struct Broadcasting {
+    #[getset(get = "pub")]
     ipv4_id: Option<String>,
+    #[getset(get = "pub")]
     ipv6_id: Option<String>,
 }
 

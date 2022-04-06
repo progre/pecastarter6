@@ -1,102 +1,65 @@
-use chrono::{DateTime, Local, SecondsFormat};
-use tokio::{
-    fs::OpenOptions,
-    io::AsyncWriteExt,
-    spawn,
-    sync::Mutex,
-    task::JoinHandle,
-    time::{interval, Duration},
+mod logger_core;
+
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
+use crate::core::{
+    entities::settings::{ChannelSettings, GeneralSettings, Settings},
+    utils::failure::Failure,
 };
 
-use crate::core::entities::settings::{ChannelSettings, Settings};
+use self::logger_core::Logger;
 
-fn to_csv_column(column: &str) -> String {
-    column.replace('"', "\"\"")
-}
-
-fn to_csv_line(
-    local: DateTime<Local>,
-    listeners: Option<i32>,
-    relays: Option<i32>,
-    genre: &str,
-    description: &str,
-    comment: &str,
-) -> String {
-    format!(
-        "{},{},{},{},{},{}",
-        local.to_rfc3339_opts(SecondsFormat::Secs, true),
-        listeners.map(|x| x.to_string()).unwrap_or_default(),
-        relays.map(|x| x.to_string()).unwrap_or_default(),
-        to_csv_column(genre),
-        to_csv_column(description),
-        to_csv_column(comment)
-    )
-}
-
-pub struct Logger {
-    join_handle: JoinHandle<()>,
-    path: String,
-    on_error: Option<Box<dyn Fn(String) + Send + Sync>>,
-}
-
-impl Logger {
-    pub fn spawn(directory: &str, channel_name: &str) -> Self {
-        let join_handle = spawn(async move {
-            let mut interval = interval(Duration::from_secs(60));
-            interval.tick().await;
-            loop {
-                interval.tick().await;
-                // TODO: write listeners and relays
-            }
-        });
-        Self {
-            join_handle,
-            path: format!(
-                "{}/{}_{}.csv",
-                directory,
-                Local::now().format("%Y%m%d%H%M%S"),
-                channel_name
-            ),
-            on_error: None,
-        }
-    }
-
-    pub async fn put_info(&self, genre: &str, desc: &str, comment: &str) -> anyhow::Result<()> {
-        let local = Local::now();
-        let line = to_csv_line(local, None, None, genre, desc, comment);
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.path)
-            .await?;
-        file.write(line.as_bytes()).await?;
-
-        Ok(())
-    }
-
-    pub fn abort(&mut self) {
-        self.join_handle.abort();
-    }
-}
+type BoxedOnError = Box<dyn Send + Sync + Fn(Failure)>;
 
 pub struct LoggerController {
     logger: Mutex<Option<Logger>>,
+    on_error: Arc<std::sync::Mutex<Option<BoxedOnError>>>,
 }
 
 impl LoggerController {
     pub fn new() -> Self {
         Self {
             logger: Mutex::new(None),
+            on_error: Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
-    pub async fn on_broadcast(&self, settings: &Settings) -> anyhow::Result<()> {
+    pub fn set_on_error(&self, on_error: BoxedOnError) {
+        *self.on_error.lock().unwrap() = Some(on_error);
+    }
+
+    fn spawn_logger(
+        &self,
+        ipv4_channel_id: Option<String>,
+        ipv6_channel_id: Option<String>,
+        settings: &Settings,
+    ) -> Logger {
+        let on_error = self.on_error.clone();
+        Logger::spawn(
+            &settings.other_settings.log_output_directory,
+            ipv4_channel_id,
+            ipv6_channel_id,
+            &settings.general_settings.channel_name[0],
+            settings.general_settings.peer_cast_port,
+            Box::new(move |err| {
+                if let Some(on_error) = on_error.lock().unwrap().as_ref() {
+                    on_error(err);
+                }
+            }),
+        )
+    }
+
+    pub async fn on_broadcast(
+        &self,
+        ipv4_channel_id: Option<String>,
+        ipv6_channel_id: Option<String>,
+        settings: &Settings,
+    ) -> anyhow::Result<()> {
         let log_output_directory = &settings.other_settings.log_output_directory;
         if settings.other_settings.log_enabled && !log_output_directory.is_empty() {
-            let logger = Logger::spawn(
-                log_output_directory,
-                &settings.general_settings.channel_name[0],
-            );
+            let logger = self.spawn_logger(ipv4_channel_id, ipv6_channel_id, settings);
             let channel = &settings.channel_settings;
             logger
                 .put_info(&channel.genre[0], &channel.desc[0], &channel.comment[0])
@@ -104,6 +67,12 @@ impl LoggerController {
             *self.logger.lock().await = Some(logger);
         };
         Ok(())
+    }
+
+    pub async fn on_change_general_settings(&self, general_settings: &GeneralSettings) {
+        if let Some(logger) = self.logger.lock().await.as_mut() {
+            logger.set_peer_cast_port(general_settings.peer_cast_port);
+        }
     }
 
     pub async fn on_change_channel_settings(
@@ -120,6 +89,8 @@ impl LoggerController {
 
     pub async fn on_change_other_settings(
         &self,
+        ipv4_channel_id: Option<String>,
+        ipv6_channel_id: Option<String>,
         settings: &Settings,
         broadcasting: bool,
     ) -> anyhow::Result<()> {
@@ -133,10 +104,7 @@ impl LoggerController {
             return Ok(());
         }
         if logger_opt.is_none() {
-            let logger = Logger::spawn(
-                &settings.other_settings.log_output_directory,
-                &settings.general_settings.channel_name[0],
-            );
+            let logger = self.spawn_logger(ipv4_channel_id, ipv6_channel_id, settings);
             *logger_opt = Some(logger);
             let channel = &settings.channel_settings;
             let logger = logger_opt.as_ref().unwrap();
