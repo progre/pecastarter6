@@ -1,6 +1,6 @@
 import { css } from '@emotion/react';
 import { Checkbox, DefaultButton, TextField } from '@fluentui/react';
-import { dialog, invoke } from '@tauri-apps/api';
+import { dialog, invoke, shell } from '@tauri-apps/api';
 import { useState } from 'react';
 import { OtherSettings as Settings } from '../entities/Settings';
 
@@ -61,7 +61,7 @@ export default function OtherSettings(props: {
             border-bottom-left-radius: 0;
             min-width: 0;
           `}
-          iconProps={{ iconName: 'folder' }}
+          iconProps={{ iconName: 'folderopen' }}
           disabled={!props.settings.logEnabled}
           onClick={async () => {
             const logOutputDirectory = (await dialog.open({
@@ -75,6 +75,20 @@ export default function OtherSettings(props: {
             props.onChange({ ...props.settings, logOutputDirectory });
           }}
         />
+      </div>
+      <div
+        css={css`
+          margin-top: 4ex;
+        `}
+      >
+        <DefaultButton
+          iconProps={{ iconName: 'folder' }}
+          onClick={async () => {
+            invoke('open_app_dir');
+          }}
+        >
+          設定ファイルの場所を開く
+        </DefaultButton>
       </div>
     </div>
   );

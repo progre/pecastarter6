@@ -1,4 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::{
+    process::Command,
+    sync::{Arc, Weak},
+};
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
@@ -13,7 +16,7 @@ use crate::{
         },
         yp_config::YPConfig,
     },
-    features::terms_check,
+    features::{files::APP_DIR, terms_check},
 };
 
 /*
@@ -99,6 +102,12 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                         if let Some(settings) = message.get_from_payload("otherSettings") {
                             delegate.on_change_other_settings(settings).await;
                         }
+                    }
+                    "open_app_dir" => {
+                        Command::new("explorer.exe")
+                            .arg(APP_DIR.to_str().unwrap())
+                            .output()
+                            .unwrap();
                     }
                     _ => panic!("unknown command"),
                 }
