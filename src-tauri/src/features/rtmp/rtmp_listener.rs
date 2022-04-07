@@ -42,13 +42,13 @@ impl RtmpListener {
         }
     }
 
-    pub fn spawn_listener(&mut self, rtmp_listen_port: NonZeroU16) {
+    pub async fn spawn_listener(&mut self, rtmp_listen_port: NonZeroU16) -> anyhow::Result<()> {
         assert!(self.listener_handle.is_none());
         let delegate = self.delegate.clone().unwrap();
         self.port = Some(rtmp_listen_port);
+        let rtmp_listen_host = format!("0.0.0.0:{}", rtmp_listen_port);
+        let listener = TcpListener::bind(&rtmp_listen_host).await?;
         self.listener_handle = Some(spawn(async move {
-            let rtmp_listen_host = format!("0.0.0.0:{}", rtmp_listen_port);
-            let listener = TcpListener::bind(&rtmp_listen_host).await.unwrap();
             debug!("listening on {}", rtmp_listen_port);
 
             let delegate = delegate.clone();
@@ -60,5 +60,6 @@ impl RtmpListener {
                 log::trace!("on_connect end");
             }
         }));
+        Ok(())
     }
 }

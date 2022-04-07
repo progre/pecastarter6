@@ -4,7 +4,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use log::warn;
+use log::{error, warn};
 use tauri::api::dialog;
 use tokio::{net::TcpStream, sync::Mutex, task::JoinHandle};
 
@@ -130,10 +130,22 @@ impl App {
     }
 
     async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
-        let listening = rtmp_server.listen_rtmp_if_need(&self.yp_configs, settings);
-        let status = if listening { "listening" } else { "idle" };
-        self.ui.lock().unwrap().set_rtmp(status.to_owned());
-        listening
+        match rtmp_server
+            .listen_rtmp_if_need(&self.yp_configs, settings)
+            .await
+        {
+            Err(err) => {
+                let ui = self.ui.lock().unwrap();
+                ui.notify_failure(&Failure::Error(err.to_string()));
+                ui.set_rtmp("idle".to_owned());
+                false
+            }
+            Ok(listening) => {
+                let status = if listening { "listening" } else { "idle" };
+                self.ui.lock().unwrap().set_rtmp(status.to_owned());
+                listening
+            }
+        }
     }
 
     async fn update_channel(&self, settings: &Settings) {
