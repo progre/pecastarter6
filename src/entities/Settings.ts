@@ -5,6 +5,7 @@ export enum PeerCastType {
 
 export interface GeneralSettings {
   peerCastPort: number;
+  peerCastRtmpPort: number;
   channelName: readonly string[];
   rtmpListenPort: number;
 }

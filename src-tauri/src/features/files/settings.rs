@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 use log::error;
 use tokio::fs::{create_dir, read_to_string, write};
 
-use crate::core::entities::settings::Settings;
+use crate::core::{entities::settings::Settings, utils::tcp::find_free_port};
 
 use super::APP_DIR;
 
@@ -17,7 +17,11 @@ pub async fn load_settings_and_show_dialog_if_error(dialog: fn(&str)) -> Setting
                     err
                 ));
             }
-            Settings::default()
+            let mut default = Settings::default();
+            default
+                .general_settings
+                .set_peer_cast_rtmp_port(find_free_port().await.unwrap().into());
+            default
         }
         Ok(str) => match serde_json::from_str::<Settings>(&str) {
             Err(err) => {
@@ -28,8 +32,17 @@ pub async fn load_settings_and_show_dialog_if_error(dialog: fn(&str)) -> Setting
                 ));
                 Settings::default()
             }
-            Ok(settings) => {
+            Ok(mut settings) => {
                 log::trace!("{:?}", settings);
+                if settings
+                    .general_settings
+                    .is_require_default_peer_cast_rtmp_port()
+                {
+                    settings
+                        .general_settings
+                        .set_peer_cast_rtmp_port(find_free_port().await.unwrap().into());
+                    save_settings_and_show_dialog_if_error(&settings, dialog).await;
+                }
                 settings
             }
         },

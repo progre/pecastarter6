@@ -4,7 +4,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use log::{error, warn};
+use log::warn;
 use tauri::api::dialog;
 use tokio::{net::TcpStream, sync::Mutex, task::JoinHandle};
 

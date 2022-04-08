@@ -4,6 +4,7 @@ import {
   faCheck,
   faChevronDown,
   faChevronUp,
+  faSearch,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   faCopy,
@@ -26,6 +27,7 @@ export default function initFluentUI() {
       copy: <FontAwesomeIcon icon={faCopy} />,
       folderopen: <FontAwesomeIcon icon={faFolderOpen} />,
       folder: <FontAwesomeIcon icon={faFolder} />,
+      search: <FontAwesomeIcon icon={faSearch} />,
     },
   });
 }

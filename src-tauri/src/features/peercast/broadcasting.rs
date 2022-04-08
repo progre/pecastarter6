@@ -119,7 +119,11 @@ impl Broadcasting {
         yp_configs: &[YPConfig],
         settings: &Settings,
     ) -> Result<NonZeroU16, Failure> {
-        let rtmp_conn_port = find_free_port().await.unwrap();
+        let rtmp_conn_port = if settings.general_settings.peer_cast_rtmp_port() != 0 {
+            NonZeroU16::new(settings.general_settings.peer_cast_rtmp_port()).unwrap()
+        } else {
+            find_free_port().await.unwrap()
+        };
 
         let adapter = PeCaStAdapter::new(settings.general_settings.peer_cast_port);
         let (ipv4_yp_id, ipv6_yp_id) =

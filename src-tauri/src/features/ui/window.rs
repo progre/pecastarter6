@@ -10,11 +10,14 @@ use tauri::{generate_context, AppHandle, Invoke, InvokeMessage, Manager, PageLoa
 use tokio::task::JoinHandle;
 
 use crate::{
-    core::entities::{
-        settings::{
-            ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
+    core::{
+        entities::{
+            settings::{
+                ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
+            },
+            yp_config::YPConfig,
         },
-        yp_config::YPConfig,
+        utils::tcp::find_free_port,
     },
     features::{files::APP_DIR, terms_check},
 };
@@ -80,12 +83,6 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
             tauri::async_runtime::spawn(async move {
                 let delegate = message.state_ref().get::<WindowState>().delegate();
                 match message.command() {
-                    "fetch_hash" => {
-                        let payload = message.payload();
-                        let url = payload.get("url").unwrap().as_str().unwrap();
-                        let selector = payload.get("selector").map(|x| x.as_str()).flatten();
-                        resolver.resolve(terms_check::fetch_hash(url, selector).await.unwrap());
-                    }
                     "initial_data" => {
                         resolver.resolve(delegate.initial_data().await);
                     }
@@ -102,6 +99,15 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                         if let Some(settings) = message.get_from_payload("otherSettings") {
                             delegate.on_change_other_settings(settings).await;
                         }
+                    }
+                    "fetch_hash" => {
+                        let payload = message.payload();
+                        let url = payload.get("url").unwrap().as_str().unwrap();
+                        let selector = payload.get("selector").map(|x| x.as_str()).flatten();
+                        resolver.resolve(terms_check::fetch_hash(url, selector).await.unwrap());
+                    }
+                    "find_free_port" => {
+                        resolver.resolve(find_free_port().await.unwrap());
                     }
                     "open_app_dir" => {
                         Command::new("explorer.exe")

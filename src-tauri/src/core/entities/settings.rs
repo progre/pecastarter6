@@ -18,14 +18,31 @@ impl Default for PeerCastType {
 #[serde(rename_all = "camelCase")]
 pub struct GeneralSettings {
     pub peer_cast_port: NonZeroU16,
+    #[serde(default)]
+    peer_cast_rtmp_port: Option<u16>,
     pub channel_name: Vec<String>,
     pub rtmp_listen_port: NonZeroU16,
+}
+
+impl GeneralSettings {
+    pub fn is_require_default_peer_cast_rtmp_port(&self) -> bool {
+        self.peer_cast_rtmp_port.is_none()
+    }
+
+    pub fn peer_cast_rtmp_port(&self) -> u16 {
+        self.peer_cast_rtmp_port.unwrap()
+    }
+
+    pub fn set_peer_cast_rtmp_port(&mut self, value: u16) {
+        self.peer_cast_rtmp_port = Some(value);
+    }
 }
 
 impl Default for GeneralSettings {
     fn default() -> Self {
         GeneralSettings {
             peer_cast_port: NonZeroU16::new(7144u16).unwrap(),
+            peer_cast_rtmp_port: None,
             channel_name: vec!["".to_owned()],
             rtmp_listen_port: NonZeroU16::new(1935u16).unwrap(),
         }
