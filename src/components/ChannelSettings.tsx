@@ -3,18 +3,12 @@ import { ChannelSettings as Settings } from '../entities/Settings';
 import updatedHistory from '../utils/updatedHistory';
 import HistoryTextField from './molecules/HistoryTextField';
 
-export default function ChannelSettings(props: {
+function ChannelContent(props: {
   settings: Settings;
   onChange(value: Settings): void;
-}) {
+}): JSX.Element {
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      `}
-    >
+    <>
       <HistoryTextField
         label="ジャンル"
         value={props.settings.genre[0]}
@@ -37,6 +31,23 @@ export default function ChannelSettings(props: {
           })
         }
       />
+    </>
+  );
+}
+
+export default function ChannelSettings(props: {
+  settings: Settings;
+  onChange(value: Settings): void;
+}) {
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      `}
+    >
+      <ChannelContent settings={props.settings} onChange={props.onChange} />
       <HistoryTextField
         label="コメント"
         value={props.settings.comment[0]}
