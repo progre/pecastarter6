@@ -1,7 +1,6 @@
 import { css } from '@emotion/react';
 import {
   DefaultButton,
-  IconButton,
   IRefObject,
   ITextFieldProps,
   ITooltipHost,
@@ -13,7 +12,7 @@ import {
   TooltipOverflowMode,
 } from '@fluentui/react';
 import { invoke } from '@tauri-apps/api';
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
 import updatedHistory from '../utils/updatedHistory';
 import HistoryTextField from './molecules/HistoryTextField';
@@ -126,17 +125,12 @@ export default function GeneralSettings(props: {
   settings: Settings;
   onChange(value: Settings): void;
 }) {
-  const [state, setState] = useState({
-    ...props.settings,
-    workingChannelName: props.settings.channelName[0],
-  });
-
-  const update = (newState: Partial<State>) => {
-    setState((state) => ({ ...state, ...newState }));
-  };
+  const update = (newState: Partial<State>) => {};
 
   const serverForObs = `rtmp://localhost${
-    state.rtmpListenPort === 1935 ? '' : `:${state.rtmpListenPort}`
+    props.settings.rtmpListenPort === 1935
+      ? ''
+      : `:${props.settings.rtmpListenPort}`
   }/live/livestream`;
 
   return (
@@ -150,21 +144,14 @@ export default function GeneralSettings(props: {
       <HistoryTextField
         label="チャンネル名"
         required
-        history={state.channelName.filter((x) => x.trim() !== '')}
-        value={state.workingChannelName}
-        onChange={(value) =>
-          setState((state) => ({ ...state, ...{ workingChannelName: value } }))
-        }
-        onBlurCapture={(_ev) => {
-          const generalSettings = {
-            ...state,
-            channelName: updatedHistory(
-              state.workingChannelName,
-              state.channelName,
-              5
-            ),
+        history={props.settings.channelName.filter((x) => x.trim() !== '')}
+        value={props.settings.channelName[0]}
+        onChange={(value) => {
+          const newState = {
+            ...props.settings,
+            channelName: updatedHistory(value, props.settings.channelName, 5),
           };
-          props.onChange(generalSettings);
+          props.onChange(newState);
         }}
       />
       <SpinButton
@@ -176,7 +163,7 @@ export default function GeneralSettings(props: {
         css={css`
           margin-top: 24px;
         `}
-        value={String(state.rtmpListenPort)}
+        value={String(props.settings.rtmpListenPort)}
         onChange={(_e, newValue) =>
           update({ rtmpListenPort: Number(newValue) })
         }
@@ -194,21 +181,16 @@ export default function GeneralSettings(props: {
         styles={{ input: { textAlign: 'end' } }}
         max={65535}
         min={1}
-        value={String(state.peerCastPort)}
+        value={String(props.settings.peerCastPort)}
         onChange={(_e, newValue) => update({ peerCastPort: Number(newValue) })}
       />
       <PeerCastRtmpTcpPort
-        value={state.peerCastRtmpPort}
+        value={props.settings.peerCastRtmpPort}
         onChange={(peerCastRtmpPort) => {
           update({ peerCastRtmpPort });
           const generalSettings = {
-            ...state,
+            ...props.settings,
             peerCastRtmpPort,
-            channelName: updatedHistory(
-              state.workingChannelName,
-              state.channelName,
-              5
-            ),
           };
           props.onChange(generalSettings);
         }}
