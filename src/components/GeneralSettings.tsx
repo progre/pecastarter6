@@ -89,8 +89,10 @@ function PeerCastRtmpTcpPort(props: {
         max={65535}
         min={0}
         value={String(value)}
-        onChange={(_e, newValue) => setValue(Number(newValue))}
-        onBlur={() => props.onChange(value)}
+        onChange={(_e, newValue) => {
+          setValue(Number(newValue));
+          props.onChange(Number(newValue));
+        }}
       />
       <DefaultButton
         css={css`
@@ -125,8 +127,6 @@ export default function GeneralSettings(props: {
   settings: Settings;
   onChange(value: Settings): void;
 }) {
-  const update = (newState: Partial<State>) => {};
-
   const serverForObs = `rtmp://localhost${
     props.settings.rtmpListenPort === 1935
       ? ''
@@ -156,16 +156,19 @@ export default function GeneralSettings(props: {
       />
       <SpinButton
         label="RTMP 待ち受け TCP ポート番号"
-        style={{ width: '0' }}
-        styles={{ input: { textAlign: 'end' } }}
-        max={65535}
-        min={1}
         css={css`
           margin-top: 24px;
         `}
+        style={{ width: 0 }}
+        styles={{ input: { textAlign: 'end' } }}
+        max={65535}
+        min={1}
         value={String(props.settings.rtmpListenPort)}
-        onChange={(_e, newValue) =>
-          update({ rtmpListenPort: Number(newValue) })
+        onChange={(_ev, newValue) =>
+          props.onChange({
+            ...props.settings,
+            rtmpListenPort: Number(newValue),
+          })
         }
       />
       <CopyableTextField
@@ -182,18 +185,18 @@ export default function GeneralSettings(props: {
         max={65535}
         min={1}
         value={String(props.settings.peerCastPort)}
-        onChange={(_e, newValue) => update({ peerCastPort: Number(newValue) })}
+        onChange={(_ev, newValue) =>
+          props.onChange({
+            ...props.settings,
+            peerCastPort: Number(newValue),
+          })
+        }
       />
       <PeerCastRtmpTcpPort
         value={props.settings.peerCastRtmpPort}
-        onChange={(peerCastRtmpPort) => {
-          update({ peerCastRtmpPort });
-          const generalSettings = {
-            ...props.settings,
-            peerCastRtmpPort,
-          };
-          props.onChange(generalSettings);
-        }}
+        onChange={(peerCastRtmpPort) =>
+          props.onChange({ ...props.settings, peerCastRtmpPort })
+        }
       />
     </div>
   );
