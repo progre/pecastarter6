@@ -7,12 +7,11 @@ import {
   faSearch,
   faXmark,
   faWarning,
-  faInfo,
   faCircleInfo,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   faCircleXmark,
-  faCopy,
+  faClipboard,
   faFolder,
   faFolderOpen,
 } from '@fortawesome/free-regular-svg-icons';
@@ -30,7 +29,7 @@ export default function initFluentUI() {
       chevrondownsmall: <FontAwesomeIcon icon={faChevronDown} />,
       chevronupsmall: <FontAwesomeIcon icon={faChevronUp} />,
       clear: <FontAwesomeIcon icon={faXmark} />,
-      copy: <FontAwesomeIcon icon={faCopy} />,
+      clipboard: <FontAwesomeIcon icon={faClipboard} />,
       errorbadge: <FontAwesomeIcon icon={faCircleXmark} />,
       folderopen: <FontAwesomeIcon icon={faFolderOpen} />,
       folder: <FontAwesomeIcon icon={faFolder} />,

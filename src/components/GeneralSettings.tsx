@@ -52,7 +52,7 @@ function CopyableTextField(props: ITextFieldProps) {
             border-bottom-left-radius: 0;
           `}
           text="Copy"
-          iconProps={{ iconName: 'copy' }}
+          iconProps={{ iconName: 'clipboard' }}
           onClick={() => {
             navigator.clipboard.writeText(props.value!!);
             ref.current!!.show();
