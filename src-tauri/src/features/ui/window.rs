@@ -6,7 +6,9 @@ use std::{
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
-use tauri::{generate_context, AppHandle, Invoke, InvokeMessage, Manager, PageLoadPayload};
+use tauri::{
+    generate_context, AppHandle, Invoke, InvokeMessage, Manager, PageLoadPayload, UserAttentionType,
+};
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -157,6 +159,20 @@ impl Window {
     }
 
     pub fn notify(&self, level: &str, message: &str) {
+        let attention = match level {
+            "fatal" => Some(UserAttentionType::Critical),
+            "error" => Some(UserAttentionType::Informational),
+            _ => None,
+        };
+        if let Some(attention) = attention {
+            if let Some(app_handle) = &self.app_handle {
+                app_handle
+                    .get_window("main")
+                    .unwrap()
+                    .request_user_attention(Some(attention))
+                    .unwrap();
+            }
+        }
         self.send(
             "notify",
             json!({

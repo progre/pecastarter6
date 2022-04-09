@@ -1,4 +1,5 @@
 import { css } from '@emotion/react';
+import { MessageBar, MessageBarType } from '@fluentui/react';
 
 export default function Notification(props: {
   level: string;
@@ -11,38 +12,39 @@ export default function Notification(props: {
       css={css`
         position: absolute;
         bottom: 0;
-        pointer-events: none;
         user-select: none;
         width: 100%;
+        z-index: 1;
       `}
     >
-      <div
-        css={css`
-          display: flex;
-          padding: 8px;
-          background-color: #f9f9f9;
-        `}
+      <MessageBar
+        messageBarType={
+          {
+            fatal: MessageBarType.error,
+            error: MessageBarType.severeWarning,
+            warn: MessageBarType.warning,
+          }[props.level] ?? MessageBarType.info
+        }
+        isMultiline={true}
+        dismissButtonAriaLabel="Close"
+        onDismiss={() => props.onClickClose()}
+        styles={{
+          content: {
+            display: 'flex',
+            alignItems: 'center',
+          },
+          text: {
+            display: 'flex',
+            alignItems: 'center',
+          },
+          dismissSingleLine: {
+            display: 'flex',
+            alignItems: 'center',
+          },
+        }}
       >
-        <div
-          css={css`
-            width: 100%;
-            display: flex;
-          `}
-        >
-          <div>{props.message}</div>
-        </div>
-        <button
-          css={css`
-            background: none;
-            border: none;
-            cursor: pointer;
-            pointer-events: auto;
-          `}
-          onClick={() => props.onClickClose()}
-        >
-          ×
-        </button>
-      </div>
+        {props.message}
+      </MessageBar>
     </div>
   );
 }

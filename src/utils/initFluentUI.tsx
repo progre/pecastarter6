@@ -5,8 +5,13 @@ import {
   faChevronDown,
   faChevronUp,
   faSearch,
+  faXmark,
+  faWarning,
+  faInfo,
+  faCircleInfo,
 } from '@fortawesome/free-solid-svg-icons';
 import {
+  faCircleXmark,
   faCopy,
   faFolder,
   faFolderOpen,
@@ -24,10 +29,14 @@ export default function initFluentUI() {
       chevrondown: <FontAwesomeIcon icon={faChevronDown} />,
       chevrondownsmall: <FontAwesomeIcon icon={faChevronDown} />,
       chevronupsmall: <FontAwesomeIcon icon={faChevronUp} />,
+      clear: <FontAwesomeIcon icon={faXmark} />,
       copy: <FontAwesomeIcon icon={faCopy} />,
+      errorbadge: <FontAwesomeIcon icon={faCircleXmark} />,
       folderopen: <FontAwesomeIcon icon={faFolderOpen} />,
       folder: <FontAwesomeIcon icon={faFolder} />,
+      info: <FontAwesomeIcon icon={faCircleInfo} />,
       search: <FontAwesomeIcon icon={faSearch} />,
+      warning: <FontAwesomeIcon icon={faWarning} />,
     },
   });
 }

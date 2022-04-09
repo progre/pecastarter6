@@ -56,7 +56,19 @@ export default function App(props: {
     const notifyPromise = listenWrapped(
       'notify',
       (ev: Event<{ level: string; message: string }>) => {
-        setNotifications((notifications) => [...notifications, ev.payload]);
+        setNotifications((notifications) => {
+          // 連続で同じ内容を積まない
+          const current = ev.payload;
+          const last = notifications[notifications.length - 1];
+          if (
+            last != null &&
+            current.level === last.level &&
+            current.message === last.message
+          ) {
+            return notifications;
+          }
+          return [...notifications, ev.payload];
+        });
       }
     );
     const pushSettingsPromise = listenWrapped(

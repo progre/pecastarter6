@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex, MutexGuard, Weak};
 
 use async_trait::async_trait;
 use log::{error, warn};
-use tauri::api::{dialog, notification::Notification};
+use tauri::api::dialog;
 use tokio::task::JoinHandle;
 
 use crate::core::{
@@ -144,16 +144,11 @@ impl Ui {
             }
             Failure::Error(message) => {
                 error!("{:?}", failure);
-                Notification::default()
-                    .title("Error")
-                    .body(message)
-                    .show()
-                    .unwrap();
+                self.notify_error(message);
             }
             Failure::Fatal(message) => {
                 error!("{:?}", failure);
-                let none: Option<&tauri::Window> = None;
-                dialog::blocking::message(none, "Fatal", message);
+                self.notify_fatal(message)
             }
         }
     }
@@ -190,10 +185,8 @@ impl Ui {
         }
     }
 
-    #[allow(dead_code)]
     fn notify_fatal(&self, message: &str) {
-        if let Some(x) = self.lock_window() {
-            x.notify("fatal", message)
-        }
+        let none: Option<&tauri::Window> = None;
+        dialog::blocking::message(none, "Fatal", message);
     }
 }
