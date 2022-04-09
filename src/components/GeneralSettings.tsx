@@ -131,18 +131,6 @@ export default function GeneralSettings(props: {
     workingChannelName: props.settings.channelName[0],
   });
 
-  const onBlur = useCallback(() => {
-    const generalSettings = {
-      ...state,
-      channelName: updatedHistory(
-        state.workingChannelName,
-        state.channelName,
-        5
-      ),
-    };
-    props.onChange(generalSettings);
-  }, [state]);
-
   const update = (newState: Partial<State>) => {
     setState((state) => ({ ...state, ...newState }));
   };
@@ -158,14 +146,26 @@ export default function GeneralSettings(props: {
         flex-direction: column;
         gap: 8px;
       `}
-      onBlur={onBlur}
     >
       <HistoryTextField
         label="チャンネル名"
         required
         history={state.channelName.filter((x) => x.trim() !== '')}
         value={state.workingChannelName}
-        onChange={(value) => update({ workingChannelName: value })}
+        onChange={(value) =>
+          setState((state) => ({ ...state, ...{ workingChannelName: value } }))
+        }
+        onBlurCapture={(_ev) => {
+          const generalSettings = {
+            ...state,
+            channelName: updatedHistory(
+              state.workingChannelName,
+              state.channelName,
+              5
+            ),
+          };
+          props.onChange(generalSettings);
+        }}
       />
       <SpinButton
         label="RTMP 待ち受け TCP ポート番号"

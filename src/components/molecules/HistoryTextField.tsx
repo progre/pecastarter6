@@ -1,4 +1,5 @@
-import { ComboBox } from '@fluentui/react';
+import { ComboBox, IComboBox } from '@fluentui/react';
+import { DOMAttributes } from 'react';
 
 export default function HistoryTextField(props: {
   label: string;
@@ -7,6 +8,7 @@ export default function HistoryTextField(props: {
   placeholder?: string;
   history: string[];
   onChange: (value: string) => void;
+  onBlurCapture?: DOMAttributes<IComboBox>['onBlurCapture'];
 }) {
   return (
     <ComboBox
@@ -18,6 +20,7 @@ export default function HistoryTextField(props: {
       text={props.value}
       onItemClick={(_e, option, _i) => props.onChange(option!!.text)}
       onInputValueChange={(value) => props.onChange(value)}
+      onBlurCapture={props.onBlurCapture}
     />
   );
 }
