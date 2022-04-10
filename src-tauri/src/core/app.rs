@@ -212,10 +212,8 @@ impl UiDelegate for App {
             .on_change_channel_settings(&settings.channel_settings)
             .await
         {
-            self.ui
-                .lock()
-                .unwrap()
-                .notify_failure(&Failure::Warn(err.to_string()));
+            let failure = Failure::Warn(err.to_string());
+            self.ui.lock().unwrap().notify_failure(&failure);
         }
     }
 
@@ -239,10 +237,8 @@ impl UiDelegate for App {
             .on_change_other_settings(ipv4_id, ipv6_id, &settings, is_broadcasting)
             .await
         {
-            self.ui
-                .lock()
-                .unwrap()
-                .notify_failure(&Failure::Warn(err.to_string()));
+            let failure = Failure::Warn(err.to_string());
+            self.ui.lock().unwrap().notify_failure(&failure);
         }
     }
 }
@@ -255,28 +251,28 @@ impl RtmpListenerDelegate for App {
         }
 
         let rtmp_conn_port = {
-            let mut broadcasting = self.broadcasting.lock().await;
             let settings = self.settings.lock().await;
-            let rtmp_conn_port = match broadcasting.broadcast(&self.yp_configs, &settings).await {
-                Ok(ok) => ok,
-                Err(err) => {
-                    self.ui.lock().unwrap().notify_failure(&err);
-                    return;
-                }
+            let (rtmp_conn_port, ipv4_id, ipv6_id) = {
+                let mut broadcasting = self.broadcasting.lock().await;
+                (
+                    match broadcasting.broadcast(&self.yp_configs, &settings).await {
+                        Err(err) => {
+                            self.ui.lock().unwrap().notify_failure(&err);
+                            return;
+                        }
+                        Ok(ok) => ok,
+                    },
+                    broadcasting.ipv4_id().clone(),
+                    broadcasting.ipv6_id().clone(),
+                )
             };
             if let Err(err) = self
                 .logger_controller
-                .on_broadcast(
-                    broadcasting.ipv4_id().clone(),
-                    broadcasting.ipv6_id().clone(),
-                    &settings,
-                )
+                .on_broadcast(ipv4_id, ipv6_id, &settings)
                 .await
             {
-                self.ui
-                    .lock()
-                    .unwrap()
-                    .notify_failure(&Failure::Warn(err.to_string()));
+                let failure = Failure::Warn(err.to_string());
+                self.ui.lock().unwrap().notify_failure(&failure);
             }
 
             rtmp_conn_port
@@ -288,24 +284,14 @@ impl RtmpListenerDelegate for App {
 
         self.ui.lock().unwrap().set_rtmp("listening".to_owned());
         {
-            let settings = self.settings.lock().await;
             if let Err(err) = self.logger_controller.on_stop_channel().await {
-                self.ui
-                    .lock()
-                    .unwrap()
-                    .notify_failure(&Failure::Warn(err.to_string()));
+                let failure = Failure::Warn(err.to_string());
+                self.ui.lock().unwrap().notify_failure(&failure);
             }
 
-            let mut broadcasting = self.broadcasting.lock().await;
-            match broadcasting
-                .stop(settings.general_settings.peer_cast_port)
-                .await
-            {
-                Ok(_) => {}
-                Err(err) => {
-                    self.ui.lock().unwrap().notify_failure(&err);
-                    return;
-                }
+            let peer_cast_port = self.settings.lock().await.general_settings.peer_cast_port;
+            if let Err(err) = self.broadcasting.lock().await.stop(peer_cast_port).await {
+                self.ui.lock().unwrap().notify_failure(&err);
             }
         };
     }
