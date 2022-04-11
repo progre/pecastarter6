@@ -1,25 +1,12 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::{ops::Deref, sync::Arc};
 
-use async_trait::async_trait;
 use log::warn;
-use tauri::api::dialog;
-use tokio::{net::TcpStream, sync::Mutex, task::JoinHandle};
+use tokio::{sync::Mutex, task::JoinHandle};
 
 use crate::{
     core::{
-        entities::{
-            settings::{
-                ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
-            },
-            yp_config::YPConfig,
-        },
-        utils::{
-            failure::Failure,
-            tcp::{connect, pipe},
-        },
+        entities::{settings::Settings, yp_config::YPConfig},
+        utils::failure::Failure,
     },
     features::{
         files::{
@@ -30,23 +17,29 @@ use crate::{
         },
         logger::LoggerController,
         peercast::broadcasting::Broadcasting,
-        rtmp::{rtmp_server::RtmpServer, RtmpListenerDelegate},
+        rtmp::rtmp_server::RtmpServer,
         terms_check::check_expired_terms,
-        ui::{Ui, UiDelegate},
+        ui::Ui,
     },
 };
 
-async fn listen_rtmp_if_need(app: &Arc<App>) -> bool {
+use super::app_delegate_impl::AppDelegateImpl;
+
+async fn listen_rtmp_if_need(app: &App, app_delegate: &Arc<AppDelegateImpl>) -> bool {
     let mut rtmp_server = app.rtmp_server.lock().await;
-    let weak = Arc::downgrade(app);
+    let weak = Arc::downgrade(app_delegate);
     rtmp_server.set_delegate(weak);
     app.listen_rtmp_if_need(&mut rtmp_server, app.settings.lock().await.deref())
         .await
 }
 
-async fn run_ui(app: &Arc<App>, initial_rtmp: String) -> JoinHandle<()> {
+async fn run_ui(
+    app: &App,
+    app_delegate: &Arc<AppDelegateImpl>,
+    initial_rtmp: String,
+) -> JoinHandle<()> {
     let initial_channel_name = app.settings.lock().await.general_settings.channel_name[0].clone();
-    let weak = Arc::downgrade(app);
+    let weak = Arc::downgrade(app_delegate);
     app.ui
         .lock()
         .unwrap()
@@ -54,27 +47,20 @@ async fn run_ui(app: &Arc<App>, initial_rtmp: String) -> JoinHandle<()> {
         .await
 }
 
-fn show_file_error_dialog(message: &str) {
-    let none: Option<&tauri::Window> = None;
-    dialog::blocking::message(none, "Fatal", message);
-}
-
 pub struct App {
-    yp_configs: Vec<YPConfig>,
-    settings: Mutex<Settings>,
-    ui: std::sync::Mutex<Ui>,
-    rtmp_server: Mutex<RtmpServer>,
-    broadcasting: Mutex<Broadcasting>,
-    logger_controller: LoggerController,
+    pub yp_configs: Vec<YPConfig>,
+    pub settings: Mutex<Settings>,
+    pub ui: std::sync::Mutex<Ui>,
+    pub rtmp_server: Mutex<RtmpServer>,
+    pub broadcasting: Mutex<Broadcasting>,
+    pub logger_controller: LoggerController,
 }
 
 impl App {
     async fn new() -> Self {
         Self {
-            yp_configs: read_yp_configs_and_show_dialog_if_error(show_file_error_dialog).await,
-            settings: Mutex::new(
-                load_settings_and_show_dialog_if_error(show_file_error_dialog).await,
-            ),
+            yp_configs: read_yp_configs_and_show_dialog_if_error().await,
+            settings: Mutex::new(load_settings_and_show_dialog_if_error().await),
             ui: std::sync::Mutex::new(Ui::new()),
             rtmp_server: Mutex::new(RtmpServer::new()),
             broadcasting: Mutex::new(Broadcasting::new()),
@@ -84,27 +70,29 @@ impl App {
 
     pub async fn run() {
         let zelf = Arc::new(Self::new().await);
+        let app_delegate = Arc::new(AppDelegateImpl::new(Arc::downgrade(&zelf)));
 
         {
-            let weak = Arc::downgrade(&zelf);
+            let app_delegate = app_delegate.clone();
             zelf.logger_controller
                 .set_on_error(Box::new(move |failure| {
-                    if let Some(app) = weak.upgrade() {
-                        app.ui.lock().unwrap().notify_failure(&failure);
-                    }
+                    app_delegate.on_error_log_controller(&failure);
                 }));
         }
 
-        let initial_rtmp = if listen_rtmp_if_need(&zelf).await {
+        let initial_rtmp = if listen_rtmp_if_need(&zelf, &app_delegate).await {
             "listening"
         } else {
             "idle"
         };
 
-        run_ui(&zelf, initial_rtmp.to_owned()).await.await.unwrap(); // long long awaiting
+        run_ui(&zelf, &app_delegate, initial_rtmp.to_owned())
+            .await
+            .await // long long awaiting
+            .unwrap();
     }
 
-    async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
+    pub async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
         let (result, settings) = {
             let mut settings = self.settings.lock().await;
             (
@@ -115,7 +103,7 @@ impl App {
         match result {
             Ok(true) => true,
             Ok(false) => {
-                save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
+                save_settings_and_show_dialog_if_error(&settings).await;
                 self.ui.lock().unwrap().reset_yp_terms(settings.clone());
                 false
             }
@@ -129,7 +117,11 @@ impl App {
         }
     }
 
-    async fn listen_rtmp_if_need(&self, rtmp_server: &mut RtmpServer, settings: &Settings) -> bool {
+    pub async fn listen_rtmp_if_need(
+        &self,
+        rtmp_server: &mut RtmpServer,
+        settings: &Settings,
+    ) -> bool {
         match rtmp_server
             .listen_rtmp_if_need(&self.yp_configs, settings)
             .await
@@ -148,7 +140,7 @@ impl App {
         }
     }
 
-    async fn update_channel(&self, settings: &Settings) {
+    pub async fn update_channel(&self, settings: &Settings) {
         let broadcasting = self.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
             let res = broadcasting.update(&self.yp_configs, settings).await;
@@ -156,143 +148,5 @@ impl App {
                 self.ui.lock().unwrap().notify_failure(&err);
             }
         }
-    }
-}
-
-unsafe impl Send for App {}
-unsafe impl Sync for App {}
-
-#[async_trait]
-impl UiDelegate for App {
-    async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
-        (self.yp_configs.clone(), self.settings.lock().await.clone())
-    }
-
-    async fn on_change_general_settings(&self, general_settings: GeneralSettings) {
-        log::trace!("{:?}", general_settings);
-
-        let mut settings = self.settings.lock().await;
-        settings.general_settings = general_settings;
-        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
-
-        self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
-            .await;
-
-        self.update_channel(&settings).await;
-
-        self.logger_controller
-            .on_change_general_settings(&settings.general_settings)
-            .await;
-    }
-
-    async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings) {
-        log::trace!("{:?}", yellow_pages_settings);
-
-        let mut settings = self.settings.lock().await;
-        settings.yellow_pages_settings = yellow_pages_settings;
-        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
-
-        self.listen_rtmp_if_need(self.rtmp_server.lock().await.deref_mut(), &settings)
-            .await;
-
-        self.update_channel(&settings).await;
-    }
-
-    async fn on_change_channel_settings(&self, channel_settings: ChannelSettings) {
-        log::trace!("{:?}", channel_settings);
-
-        let mut settings = self.settings.lock().await;
-        settings.channel_settings = channel_settings;
-        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
-
-        self.update_channel(&settings).await;
-
-        if let Err(err) = self
-            .logger_controller
-            .on_change_channel_settings(&settings.channel_settings)
-            .await
-        {
-            let failure = Failure::Warn(err.to_string());
-            self.ui.lock().unwrap().notify_failure(&failure);
-        }
-    }
-
-    async fn on_change_other_settings(&self, other_settings: OtherSettings) {
-        log::trace!("{:?}", other_settings);
-
-        let mut settings = self.settings.lock().await;
-        settings.other_settings = other_settings;
-        save_settings_and_show_dialog_if_error(&settings, show_file_error_dialog).await;
-
-        let (is_broadcasting, ipv4_id, ipv6_id) = {
-            let broadcasting = self.broadcasting.lock().await;
-            (
-                broadcasting.is_broadcasting(),
-                broadcasting.ipv4_id().clone(),
-                broadcasting.ipv6_id().clone(),
-            )
-        };
-        if let Err(err) = self
-            .logger_controller
-            .on_change_other_settings(ipv4_id, ipv6_id, &settings, is_broadcasting)
-            .await
-        {
-            let failure = Failure::Warn(err.to_string());
-            self.ui.lock().unwrap().notify_failure(&failure);
-        }
-    }
-}
-
-#[async_trait]
-impl RtmpListenerDelegate for App {
-    async fn on_connect(&self, incoming: TcpStream) {
-        if !self.show_check_again_terms_dialog_if_expired().await {
-            return;
-        }
-
-        let rtmp_conn_port = {
-            let settings = self.settings.lock().await;
-            let (rtmp_conn_port, ipv4_id, ipv6_id) = {
-                let mut broadcasting = self.broadcasting.lock().await;
-                (
-                    match broadcasting.broadcast(&self.yp_configs, &settings).await {
-                        Err(err) => {
-                            self.ui.lock().unwrap().notify_failure(&err);
-                            return;
-                        }
-                        Ok(ok) => ok,
-                    },
-                    broadcasting.ipv4_id().clone(),
-                    broadcasting.ipv6_id().clone(),
-                )
-            };
-            if let Err(err) = self
-                .logger_controller
-                .on_broadcast(ipv4_id, ipv6_id, &settings)
-                .await
-            {
-                let failure = Failure::Warn(err.to_string());
-                self.ui.lock().unwrap().notify_failure(&failure);
-            }
-
-            rtmp_conn_port
-        };
-        self.ui.lock().unwrap().set_rtmp("streaming".to_owned());
-
-        let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
-        pipe(incoming, outgoing).await; // long long awaiting
-
-        self.ui.lock().unwrap().set_rtmp("listening".to_owned());
-        {
-            if let Err(err) = self.logger_controller.on_stop_channel().await {
-                let failure = Failure::Warn(err.to_string());
-                self.ui.lock().unwrap().notify_failure(&failure);
-            }
-
-            let peer_cast_port = self.settings.lock().await.general_settings.peer_cast_port;
-            if let Err(err) = self.broadcasting.lock().await.stop(peer_cast_port).await {
-                self.ui.lock().unwrap().notify_failure(&err);
-            }
-        };
     }
 }

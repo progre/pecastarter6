@@ -3,16 +3,19 @@ use std::io::ErrorKind;
 use log::error;
 use tokio::fs::{create_dir, read_to_string, write};
 
-use crate::core::{entities::settings::Settings, utils::tcp::find_free_port};
+use crate::{
+    core::{entities::settings::Settings, utils::tcp::find_free_port},
+    features::files::dialog::show_file_error_dialog,
+};
 
 use super::APP_DIR;
 
-pub async fn load_settings_and_show_dialog_if_error(dialog: fn(&str)) -> Settings {
+pub async fn load_settings_and_show_dialog_if_error() -> Settings {
     match read_to_string(APP_DIR.join("settings.json")).await {
         Err(err) => {
             if err.kind() != ErrorKind::NotFound {
                 error!("{:?}", err);
-                dialog(&format!(
+                show_file_error_dialog(&format!(
                     "設定ファイルの読み込みに失敗しました。({:?})",
                     err
                 ));
@@ -26,7 +29,7 @@ pub async fn load_settings_and_show_dialog_if_error(dialog: fn(&str)) -> Setting
         Ok(str) => match serde_json::from_str::<Settings>(&str) {
             Err(err) => {
                 error!("{:?}", err);
-                dialog(&format!(
+                show_file_error_dialog(&format!(
                     "設定ファイルが破損しています。({:?})\n設定をリセットします。",
                     err
                 ));
@@ -41,7 +44,7 @@ pub async fn load_settings_and_show_dialog_if_error(dialog: fn(&str)) -> Setting
                     settings
                         .general_settings
                         .set_peer_cast_rtmp_port(find_free_port().await.unwrap().into());
-                    save_settings_and_show_dialog_if_error(&settings, dialog).await;
+                    save_settings_and_show_dialog_if_error(&settings).await;
                 }
                 settings
             }
@@ -49,7 +52,7 @@ pub async fn load_settings_and_show_dialog_if_error(dialog: fn(&str)) -> Setting
     }
 }
 
-pub async fn save_settings_and_show_dialog_if_error(settings: &Settings, dialog: fn(&str)) {
+pub async fn save_settings_and_show_dialog_if_error(settings: &Settings) {
     if let Err(err) = create_dir(APP_DIR.as_path()).await {
         if err.kind() != ErrorKind::AlreadyExists {
             panic!("{:?}", err);
@@ -62,6 +65,6 @@ pub async fn save_settings_and_show_dialog_if_error(settings: &Settings, dialog:
     .await;
     if let Err(err) = opt {
         error!("{:?}", err);
-        dialog(&format!("設定ファイルの保存に失敗しました。({:?})", err));
+        show_file_error_dialog(&format!("設定ファイルの保存に失敗しました。({:?})", err));
     }
 }

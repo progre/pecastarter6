@@ -4,7 +4,7 @@ use anyhow::Result;
 use log::error;
 use tokio::fs::{read_dir, read_to_string};
 
-use crate::core::entities::yp_config::YPConfig;
+use crate::{core::entities::yp_config::YPConfig, features::files::dialog::show_file_error_dialog};
 
 use super::APP_DIR;
 
@@ -13,15 +13,12 @@ async fn read_yp_config(path: PathBuf) -> Result<YPConfig> {
     Ok(serde_json::from_str::<YPConfig>(&json_src)?)
 }
 
-async fn read_yp_config_and_show_dialog_if_error(
-    path: PathBuf,
-    dialog: fn(&str),
-) -> Option<YPConfig> {
+async fn read_yp_config_and_show_dialog_if_error(path: PathBuf) -> Option<YPConfig> {
     match read_yp_config(path).await {
         Ok(yp_configs) => Some(yp_configs),
         Err(err) => {
             error!("{:?}", err);
-            dialog(&format!(
+            show_file_error_dialog(&format!(
                 "YP設定ファイルの読み込みに失敗しました。({:?})",
                 err
             ));
@@ -30,7 +27,7 @@ async fn read_yp_config_and_show_dialog_if_error(
     }
 }
 
-pub async fn read_yp_configs_and_show_dialog_if_error(dialog: fn(&str)) -> Vec<YPConfig> {
+pub async fn read_yp_configs_and_show_dialog_if_error() -> Vec<YPConfig> {
     let exe_dir_yp = current_exe().unwrap().with_file_name("yp");
     let app_dir_yp = APP_DIR.join("yp");
 
@@ -55,9 +52,7 @@ pub async fn read_yp_configs_and_show_dialog_if_error(dialog: fn(&str)) -> Vec<Y
             {
                 continue;
             };
-            if let Some(config) =
-                read_yp_config_and_show_dialog_if_error(entry.path(), dialog).await
-            {
+            if let Some(config) = read_yp_config_and_show_dialog_if_error(entry.path()).await {
                 yp_configs.insert(file_name, config);
             }
         }
