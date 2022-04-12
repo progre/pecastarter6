@@ -1,6 +1,12 @@
 import { css } from '@emotion/react';
-import { Dropdown, ResponsiveMode, TextField } from '@fluentui/react';
-import { DOMAttributes, useState } from 'react';
+import {
+  DefaultButton,
+  Dropdown,
+  IDropdown,
+  ResponsiveMode,
+  TextField,
+} from '@fluentui/react';
+import { DOMAttributes, useRef, useState } from 'react';
 import {
   ChannelContent,
   ChannelSettings as Settings,
@@ -11,30 +17,50 @@ function History(props: {
   history: readonly ChannelContent[];
   onChange(value: ChannelContent): void;
 }): JSX.Element {
+  const componentRef = useRef<IDropdown>(null);
+  const [isOpen, setOpen] = useState(false);
   return (
-    <Dropdown
+    <div
       css={css`
-        margin-right: 24px;
         display: flex;
-        > div {
-          margin-left: 8px;
-          flex-grow: 1;
-        }
       `}
-      label="履歴"
-      responsiveMode={ResponsiveMode.large}
-      options={props.history.map((x, i) => ({
-        key: `${x.genre} - ${x.desc}`,
-        data: x,
-        text: `${x.genre} - ${x.desc}`,
-      }))}
-      selectedKey={null}
-      onChange={(e, option, _i) => props.onChange(option!!.data!!)}
-    />
+    >
+      <Dropdown
+        componentRef={componentRef}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        css={css`
+          flex-grow: 1;
+          opacity: 0;
+          pointer-events: none;
+        `}
+        responsiveMode={ResponsiveMode.large}
+        options={props.history.map((x, _i) => ({
+          key: `${x.genre} - ${x.desc}`,
+          data: x,
+          text: `${x.genre} - ${x.desc}`,
+        }))}
+        selectedKey={null}
+        onChange={(_e, option, _i) => props.onChange(option!!.data!!)}
+      />
+      <DefaultButton
+        css={css`
+          min-width: 32px;
+          padding-left: 0;
+          padding-right: 0;
+        `}
+        iconProps={{
+          iconName: 'chevrondown',
+          styles: { root: { fontSize: 12 } },
+        }}
+        onClick={() => componentRef.current!.focus(!isOpen)}
+      />
+    </div>
   );
 }
 
 function ChannelContentView(props: {
+  history: readonly ChannelContent[];
   channelContent: ChannelContent;
   onChange(value: Partial<ChannelContent>): void;
   onBlur: DOMAttributes<HTMLDivElement>['onBlur'];
@@ -42,25 +68,49 @@ function ChannelContentView(props: {
   return (
     <div
       css={css`
-        display: flex;
-        flex-direction: row;
-        gap: 8px;
+        position: relative;
       `}
-      onBlur={props.onBlur}
     >
-      <TextField
-        label="ジャンル"
-        value={props.channelContent.genre}
-        onChange={(_e, genre) => props.onChange({ genre })}
-      />
-      <TextField
+      <div
         css={css`
-          flex-grow: 1;
+          width: 100%;
+          position: absolute;
+          margin-top: 31.5px;
         `}
-        label="概要"
-        value={props.channelContent.desc}
-        onChange={(_e, desc) => props.onChange({ desc })}
-      />
+      >
+        <History
+          history={props.history}
+          onChange={(newChannelContent) =>
+            props.onChange({
+              genre: newChannelContent.genre,
+              desc: newChannelContent.desc,
+            })
+          }
+        />
+      </div>
+      <div
+        css={css`
+          margin-right: 32px;
+          padding-right: 8px;
+          display: flex;
+          gap: 8px;
+        `}
+        onBlur={props.onBlur}
+      >
+        <TextField
+          label="ジャンル"
+          value={props.channelContent.genre}
+          onChange={(_e, genre) => props.onChange({ genre })}
+        />
+        <TextField
+          css={css`
+            flex-grow: 1;
+          `}
+          label="概要"
+          value={props.channelContent.desc}
+          onChange={(_e, desc) => props.onChange({ desc })}
+        />
+      </div>
     </div>
   );
 }
@@ -83,6 +133,7 @@ export default function ChannelSettings(props: {
       `}
     >
       <ChannelContentView
+        history={props.settings.channelContentHistory}
         channelContent={channelContent}
         onChange={(newValue) => {
           setChannelContent((channelContent) => ({
@@ -95,17 +146,6 @@ export default function ChannelSettings(props: {
             ...props.settings,
             genre: channelContent.genre,
             desc: channelContent.desc,
-          });
-        }}
-      />
-      <History
-        history={props.settings.channelContentHistory}
-        onChange={(newChannelContent) => {
-          setChannelContent(newChannelContent);
-          props.onChange({
-            ...props.settings,
-            genre: newChannelContent.genre,
-            desc: newChannelContent.desc,
           });
         }}
       />
