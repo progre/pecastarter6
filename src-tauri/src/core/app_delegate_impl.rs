@@ -1,10 +1,11 @@
 use std::{
+    num::NonZeroU16,
     ops::DerefMut,
     sync::{Arc, Weak},
 };
 
 use async_trait::async_trait;
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, sync::Mutex};
 
 use crate::{
     core::{
@@ -20,8 +21,8 @@ use crate::{
         },
     },
     features::{
-        files::settings::save_settings_and_show_dialog_if_error, rtmp::RtmpListenerDelegate,
-        ui::UiDelegate,
+        files::settings::save_settings_and_show_dialog_if_error, logger::LoggerController,
+        peercast::broadcasting::Broadcasting, rtmp::RtmpListenerDelegate, ui::UiDelegate,
     },
 };
 
@@ -138,73 +139,76 @@ impl UiDelegate for AppDelegateImpl {
     }
 }
 
+async fn start_channel(
+    broadcasting: &Mutex<Broadcasting>,
+    yp_configs: &[YPConfig],
+    settings: &Settings,
+    logger_controller: &LoggerController,
+) -> Result<NonZeroU16, Failure> {
+    let mut broadcasting = broadcasting.lock().await;
+    let rtmp_conn_port = broadcasting.broadcast(yp_configs, settings).await?;
+
+    let ipv4_id = broadcasting.ipv4_id().clone();
+    let ipv6_id = broadcasting.ipv6_id().clone();
+    logger_controller
+        .on_broadcast(ipv4_id, ipv6_id, settings)
+        .await
+        .map_err(|err| Failure::Warn(err.to_string()))?;
+
+    Ok(rtmp_conn_port)
+}
+
+async fn stop_channel(
+    broadcasting: &Mutex<Broadcasting>,
+    settings: &Settings,
+    logger_controller: &LoggerController,
+) -> Result<(), Failure> {
+    logger_controller
+        .on_stop_channel()
+        .await
+        .map_err(|err| Failure::Warn(err.to_string()))?;
+
+    let peer_cast_port = settings.general_settings.peer_cast_port;
+    broadcasting.lock().await.stop(peer_cast_port).await
+}
+
 #[async_trait]
 impl RtmpListenerDelegate for AppDelegateImpl {
     async fn on_connect(&self, incoming: TcpStream) {
-        if !self.app().show_check_again_terms_dialog_if_expired().await {
+        let app = self.app();
+        if !app.show_check_again_terms_dialog_if_expired().await {
             return;
         }
 
-        let rtmp_conn_port = {
-            let app = self.app();
+        let result = {
             let settings = app.settings.lock().await;
-            let (rtmp_conn_port, ipv4_id, ipv6_id) = {
-                let mut broadcasting = app.broadcasting.lock().await;
-                let yp_configs = &app.yp_configs;
-                (
-                    match broadcasting.broadcast(yp_configs, &settings).await {
-                        Err(err) => {
-                            app.ui.lock().unwrap().notify_failure(&err);
-                            return;
-                        }
-                        Ok(ok) => ok,
-                    },
-                    broadcasting.ipv4_id().clone(),
-                    broadcasting.ipv6_id().clone(),
-                )
-            };
-            if let Err(err) = app
-                .logger_controller
-                .on_broadcast(ipv4_id, ipv6_id, &settings)
-                .await
-            {
-                let failure = Failure::Warn(err.to_string());
-                app.ui.lock().unwrap().notify_failure(&failure);
-            }
-
-            rtmp_conn_port
+            let lc = &app.logger_controller;
+            start_channel(&app.broadcasting, &app.yp_configs, &settings, lc).await
         };
-        self.app()
-            .ui
-            .lock()
-            .unwrap()
-            .set_rtmp("streaming".to_owned());
+        let rtmp_conn_port = match result {
+            Ok(ok) => ok,
+            Err(err) => {
+                app.ui.lock().unwrap().notify_failure(&err);
+                return;
+            }
+        };
+
+        app.ui.lock().unwrap().set_rtmp("streaming".to_owned());
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
-        self.app()
-            .ui
-            .lock()
-            .unwrap()
-            .set_rtmp("listening".to_owned());
-        {
-            if let Err(err) = self.app().logger_controller.on_stop_channel().await {
-                let failure = Failure::Warn(err.to_string());
-                self.app().ui.lock().unwrap().notify_failure(&failure);
-            }
+        app.ui.lock().unwrap().set_rtmp("listening".to_owned());
 
-            let app = self.app();
-            let peer_cast_port = {
-                let settings = app.settings.lock().await;
-                settings.general_settings.peer_cast_port
-            };
-            let result = {
-                let mut broadcasting = app.broadcasting.lock().await;
-                broadcasting.stop(peer_cast_port).await
-            };
-            if let Err(err) = result {
+        let result = {
+            let settings = app.settings.lock().await;
+            stop_channel(&app.broadcasting, &settings, &app.logger_controller).await
+        };
+        match result {
+            Ok(_) => {}
+            Err(err) => {
                 app.ui.lock().unwrap().notify_failure(&err);
+                return;
             }
         };
     }
