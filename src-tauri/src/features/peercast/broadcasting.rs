@@ -129,7 +129,7 @@ impl Broadcasting {
         let (ipv4_yp_id, ipv6_yp_id) =
             prepare_yellow_pages(&adapter, &settings.yellow_pages_settings).await?;
         let ipv4_channel_name = &settings.general_settings.channel_name[0];
-        let base_genre = &settings.channel_settings.genre[0];
+        let base_genre = &settings.channel_settings.genre;
 
         if let Some(ipv6_yp_id) = ipv6_yp_id {
             let stream = rtmp_source(rtmp_conn_port);
@@ -158,7 +158,7 @@ impl Broadcasting {
     ) -> Result<(), Failure> {
         let adapter = PeCaStAdapter::new(settings.general_settings.peer_cast_port);
         let ipv4_channel_name = &settings.general_settings.channel_name[0];
-        let base_genre = &settings.channel_settings.genre[0];
+        let base_genre = &settings.channel_settings.genre;
         try_join!(
             async {
                 if let Some(yp_id) = &self.ipv6_id {

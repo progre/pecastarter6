@@ -23,7 +23,7 @@ use crate::{
     },
 };
 
-use super::app_delegate_impl::AppDelegateImpl;
+use super::{app_delegate_impl::AppDelegateImpl, entities::settings::ChannelContent};
 
 async fn listen_rtmp_if_need(app: &App, app_delegate: &Arc<AppDelegateImpl>) -> bool {
     let mut rtmp_server = app.rtmp_server.lock().await;
@@ -55,6 +55,27 @@ fn updated_history(history: Vec<String>, limit: usize) -> Vec<String> {
         .chain(
             history_iter
                 .filter(|x| x != &working_value && !x.trim().is_empty())
+                .take(limit - 1),
+        )
+        .collect()
+}
+
+fn updated_channel_content_history(
+    history: Vec<ChannelContent>,
+    genre: &str,
+    desc: &str,
+    limit: usize,
+) -> Vec<ChannelContent> {
+    let current_channel_content = ChannelContent {
+        genre: genre.into(),
+        desc: desc.into(),
+    };
+    vec![current_channel_content.clone()]
+        .into_iter()
+        .chain(
+            history
+                .into_iter()
+                .filter(|x| x != &current_channel_content)
                 .take(limit - 1),
         )
         .collect()
@@ -157,10 +178,12 @@ impl App {
     pub fn update_histories(&self, settings: &mut Settings, ui: &std::sync::Mutex<Ui>) {
         settings.general_settings.channel_name =
             updated_history(take(&mut settings.general_settings.channel_name), 5);
-        settings.channel_settings.genre =
-            updated_history(take(&mut settings.channel_settings.genre), 20);
-        settings.channel_settings.desc =
-            updated_history(take(&mut settings.channel_settings.desc), 20);
+        settings.channel_settings.channel_content_history = updated_channel_content_history(
+            take(&mut settings.channel_settings.channel_content_history),
+            &settings.channel_settings.genre,
+            &settings.channel_settings.desc,
+            20,
+        );
         settings.channel_settings.comment =
             updated_history(take(&mut settings.channel_settings.comment), 20);
         settings.channel_settings.contact_url =

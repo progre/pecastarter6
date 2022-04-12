@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroU16};
+use std::{cmp::max, collections::HashMap, num::NonZeroU16};
 
 use serde::{Deserialize, Serialize};
 
@@ -54,11 +54,19 @@ pub struct YellowPagesSettings {
     pub agreed_terms: HashMap<String, String>,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelContent {
+    pub genre: String,
+    pub desc: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChannelSettings {
-    pub genre: Vec<String>,
-    pub desc: Vec<String>,
+    pub channel_content_history: Vec<ChannelContent>,
+    pub genre: String,
+    pub desc: String,
     pub comment: Vec<String>,
     pub contact_url: Vec<String>,
 }
@@ -66,10 +74,87 @@ pub struct ChannelSettings {
 impl Default for ChannelSettings {
     fn default() -> Self {
         Self {
-            genre: vec!["".to_owned()],
-            desc: vec!["".to_owned()],
+            channel_content_history: Default::default(),
+            genre: Default::default(),
+            desc: Default::default(),
             comment: vec!["".to_owned()],
             contact_url: vec!["".to_owned()],
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredChannelSettings {
+    pub genre: Vec<String>,
+    pub desc: Vec<String>,
+    pub comment: Vec<String>,
+    pub contact_url: Vec<String>,
+}
+
+impl StoredChannelSettings {
+    fn into_internal(self) -> ChannelSettings {
+        let genre_len = self.genre.len() as i32;
+        let desc_len = self.desc.len() as i32;
+
+        // 長さをそろえる
+        let mut genre_iter =
+            self.genre
+                .into_iter()
+                .chain(vec!["".into(); max(0, desc_len - genre_len) as usize]);
+        let mut desc_iter = self
+            .desc
+            .into_iter()
+            .chain(vec!["".into(); max(0, genre_len - desc_len) as usize]);
+
+        let genre = genre_iter.next().unwrap();
+        let desc = desc_iter.next().unwrap();
+        let channel_content_history: Vec<_> = genre_iter
+            .zip(desc_iter)
+            .map(|(x, y)| ChannelContent { genre: x, desc: y })
+            .collect();
+        ChannelSettings {
+            channel_content_history,
+            genre,
+            desc,
+            comment: self.comment,
+            contact_url: self.contact_url,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoringChannelSettings<'a> {
+    pub genre: Vec<&'a str>,
+    pub desc: Vec<&'a str>,
+    pub comment: &'a Vec<String>,
+    pub contact_url: &'a Vec<String>,
+}
+
+impl<'a> From<&'a ChannelSettings> for StoringChannelSettings<'a> {
+    fn from(settings: &'a ChannelSettings) -> Self {
+        let mut genre: Vec<&str> = vec![&settings.genre];
+        genre.append(
+            &mut settings
+                .channel_content_history
+                .iter()
+                .map(|content| &content.genre as &str)
+                .collect(),
+        );
+        let mut desc: Vec<&str> = vec![&settings.desc];
+        desc.append(
+            &mut settings
+                .channel_content_history
+                .iter()
+                .map(|content| &content.desc as &str)
+                .collect(),
+        );
+        StoringChannelSettings {
+            genre,
+            desc,
+            comment: &settings.comment,
+            contact_url: &settings.contact_url,
         }
     }
 }
@@ -95,7 +180,7 @@ pub struct Settings {
 pub struct StoredSettings {
     pub general_settings: GeneralSettings,
     pub yellow_pages_settings: YellowPagesSettings,
-    pub channel_settings: ChannelSettings,
+    pub channel_settings: StoredChannelSettings,
     #[serde(default)]
     pub other_settings: OtherSettings,
 }
@@ -105,7 +190,7 @@ impl StoredSettings {
         Settings {
             general_settings: self.general_settings,
             yellow_pages_settings: self.yellow_pages_settings,
-            channel_settings: self.channel_settings,
+            channel_settings: self.channel_settings.into_internal(),
             other_settings: self.other_settings,
         }
     }
@@ -116,7 +201,7 @@ impl StoredSettings {
 pub struct StoringSettings<'a> {
     pub general_settings: &'a GeneralSettings,
     pub yellow_pages_settings: &'a YellowPagesSettings,
-    pub channel_settings: &'a ChannelSettings,
+    pub channel_settings: StoringChannelSettings<'a>,
     pub other_settings: &'a OtherSettings,
 }
 
@@ -125,7 +210,7 @@ impl<'a> From<&'a Settings> for StoringSettings<'a> {
         Self {
             general_settings: &settings.general_settings,
             yellow_pages_settings: &settings.yellow_pages_settings,
-            channel_settings: &settings.channel_settings,
+            channel_settings: StoringChannelSettings::from(&settings.channel_settings),
             other_settings: &settings.other_settings,
         }
     }

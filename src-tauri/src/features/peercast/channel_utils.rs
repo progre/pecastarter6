@@ -21,7 +21,7 @@ pub fn info<'a>(
         bitrate: "",
         mime_type: "FLV",
         genre,
-        desc: &channel_settings.desc[0],
+        desc: &channel_settings.desc,
         comment: &channel_settings.comment[0],
     }
 }

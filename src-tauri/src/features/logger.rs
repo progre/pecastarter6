@@ -62,7 +62,7 @@ impl LoggerController {
             let logger = self.spawn_logger(ipv4_channel_id, ipv6_channel_id, settings);
             let channel = &settings.channel_settings;
             logger
-                .put_info(&channel.genre[0], &channel.desc[0], &channel.comment[0])
+                .put_info(&channel.genre, &channel.desc, &channel.comment[0])
                 .await?;
             *self.logger.lock().await = Some(logger);
         };
@@ -81,7 +81,7 @@ impl LoggerController {
     ) -> anyhow::Result<()> {
         if let Some(logger) = self.logger.lock().await.as_mut() {
             logger
-                .put_info(&channel.genre[0], &channel.desc[0], &channel.comment[0])
+                .put_info(&channel.genre, &channel.desc, &channel.comment[0])
                 .await?;
         }
         Ok(())
@@ -109,7 +109,7 @@ impl LoggerController {
             let channel = &settings.channel_settings;
             let logger = logger_opt.as_ref().unwrap();
             logger
-                .put_info(&channel.genre[0], &channel.desc[0], &channel.comment[0])
+                .put_info(&channel.genre, &channel.desc, &channel.comment[0])
                 .await?;
         }
         Ok(())

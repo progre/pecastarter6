@@ -25,9 +25,15 @@ export interface YellowPagesSettings {
   agreedTerms: { [url: string]: string };
 }
 
+export interface ChannelContent {
+  genre: string;
+  desc: string;
+}
+
 export interface ChannelSettings {
-  genre: readonly string[];
-  desc: readonly string[];
+  channelContentHistory: readonly ChannelContent[];
+  genre: string;
+  desc: string;
   comment: readonly string[];
   contactUrl: readonly string[];
 }
