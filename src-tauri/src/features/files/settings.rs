@@ -27,7 +27,7 @@ pub async fn load_settings_and_show_dialog_if_error() -> Settings {
             default.general_settings.peer_cast_rtmp_port = find_free_port().await.unwrap().into();
             default
         }
-        Ok(str) => match serde_json::from_str::<StoredSettings>(&str) {
+        Ok(str) => match deser_hjson::from_str::<StoredSettings>(&str) {
             Err(err) => {
                 error!("{:?}", err);
                 show_file_error_dialog(&format!(
