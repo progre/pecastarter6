@@ -67,8 +67,6 @@ impl UiDelegate for AppDelegateImpl {
             .listen_rtmp_if_need(self.app().rtmp_server.lock().await.deref_mut(), &settings)
             .await;
 
-        self.app().update_channel(&settings).await;
-
         self.app()
             .logger_controller
             .on_change_general_settings(&settings.general_settings)
