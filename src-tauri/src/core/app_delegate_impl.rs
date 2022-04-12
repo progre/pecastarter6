@@ -150,13 +150,11 @@ impl RtmpListenerDelegate for AppDelegateImpl {
             let settings = app.settings.lock().await;
             let (rtmp_conn_port, ipv4_id, ipv6_id) = {
                 let mut broadcasting = app.broadcasting.lock().await;
+                let yp_configs = &app.yp_configs;
                 (
-                    match broadcasting
-                        .broadcast(&self.app().yp_configs, &settings)
-                        .await
-                    {
+                    match broadcasting.broadcast(yp_configs, &settings).await {
                         Err(err) => {
-                            self.app().ui.lock().unwrap().notify_failure(&err);
+                            app.ui.lock().unwrap().notify_failure(&err);
                             return;
                         }
                         Ok(ok) => ok,
@@ -165,14 +163,13 @@ impl RtmpListenerDelegate for AppDelegateImpl {
                     broadcasting.ipv6_id().clone(),
                 )
             };
-            if let Err(err) = self
-                .app()
+            if let Err(err) = app
                 .logger_controller
                 .on_broadcast(ipv4_id, ipv6_id, &settings)
                 .await
             {
                 let failure = Failure::Warn(err.to_string());
-                self.app().ui.lock().unwrap().notify_failure(&failure);
+                app.ui.lock().unwrap().notify_failure(&failure);
             }
 
             rtmp_conn_port
@@ -197,22 +194,17 @@ impl RtmpListenerDelegate for AppDelegateImpl {
                 self.app().ui.lock().unwrap().notify_failure(&failure);
             }
 
-            let peer_cast_port = self
-                .app()
-                .settings
-                .lock()
-                .await
-                .general_settings
-                .peer_cast_port;
-            if let Err(err) = self
-                .app()
-                .broadcasting
-                .lock()
-                .await
-                .stop(peer_cast_port)
-                .await
-            {
-                self.app().ui.lock().unwrap().notify_failure(&err);
+            let app = self.app();
+            let peer_cast_port = {
+                let settings = app.settings.lock().await;
+                settings.general_settings.peer_cast_port
+            };
+            let result = {
+                let mut broadcasting = app.broadcasting.lock().await;
+                broadcasting.stop(peer_cast_port).await
+            };
+            if let Err(err) = result {
+                app.ui.lock().unwrap().notify_failure(&err);
             }
         };
     }
