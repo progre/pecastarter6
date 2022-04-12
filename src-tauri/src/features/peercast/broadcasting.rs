@@ -119,8 +119,8 @@ impl Broadcasting {
         yp_configs: &[YPConfig],
         settings: &Settings,
     ) -> Result<NonZeroU16, Failure> {
-        let rtmp_conn_port = if settings.general_settings.peer_cast_rtmp_port() != 0 {
-            NonZeroU16::new(settings.general_settings.peer_cast_rtmp_port()).unwrap()
+        let rtmp_conn_port = if settings.general_settings.peer_cast_rtmp_port != 0 {
+            NonZeroU16::new(settings.general_settings.peer_cast_rtmp_port).unwrap()
         } else {
             find_free_port().await.unwrap()
         };

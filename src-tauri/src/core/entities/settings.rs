@@ -19,30 +19,16 @@ impl Default for PeerCastType {
 pub struct GeneralSettings {
     pub peer_cast_port: NonZeroU16,
     #[serde(default)]
-    peer_cast_rtmp_port: Option<u16>,
+    pub peer_cast_rtmp_port: u16,
     pub channel_name: Vec<String>,
     pub rtmp_listen_port: NonZeroU16,
-}
-
-impl GeneralSettings {
-    pub fn is_require_default_peer_cast_rtmp_port(&self) -> bool {
-        self.peer_cast_rtmp_port.is_none()
-    }
-
-    pub fn peer_cast_rtmp_port(&self) -> u16 {
-        self.peer_cast_rtmp_port.unwrap()
-    }
-
-    pub fn set_peer_cast_rtmp_port(&mut self, value: u16) {
-        self.peer_cast_rtmp_port = Some(value);
-    }
 }
 
 impl Default for GeneralSettings {
     fn default() -> Self {
         GeneralSettings {
             peer_cast_port: NonZeroU16::new(7144u16).unwrap(),
-            peer_cast_rtmp_port: None,
+            peer_cast_rtmp_port: 0,
             channel_name: vec!["".to_owned()],
             rtmp_listen_port: NonZeroU16::new(1935u16).unwrap(),
         }
@@ -79,7 +65,7 @@ pub struct ChannelSettings {
 
 impl Default for ChannelSettings {
     fn default() -> Self {
-        ChannelSettings {
+        Self {
             genre: vec!["".to_owned()],
             desc: vec!["".to_owned()],
             comment: vec!["".to_owned()],
@@ -101,9 +87,46 @@ pub struct Settings {
     pub general_settings: GeneralSettings,
     pub yellow_pages_settings: YellowPagesSettings,
     pub channel_settings: ChannelSettings,
+    pub other_settings: OtherSettings,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredSettings {
+    pub general_settings: GeneralSettings,
+    pub yellow_pages_settings: YellowPagesSettings,
+    pub channel_settings: ChannelSettings,
     #[serde(default)]
     pub other_settings: OtherSettings,
 }
 
-unsafe impl Send for Settings {}
-unsafe impl Sync for Settings {}
+impl StoredSettings {
+    pub fn into_internal(self) -> Settings {
+        Settings {
+            general_settings: self.general_settings,
+            yellow_pages_settings: self.yellow_pages_settings,
+            channel_settings: self.channel_settings,
+            other_settings: self.other_settings,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoringSettings<'a> {
+    pub general_settings: &'a GeneralSettings,
+    pub yellow_pages_settings: &'a YellowPagesSettings,
+    pub channel_settings: &'a ChannelSettings,
+    pub other_settings: &'a OtherSettings,
+}
+
+impl<'a> From<&'a Settings> for StoringSettings<'a> {
+    fn from(settings: &'a Settings) -> Self {
+        Self {
+            general_settings: &settings.general_settings,
+            yellow_pages_settings: &settings.yellow_pages_settings,
+            channel_settings: &settings.channel_settings,
+            other_settings: &settings.other_settings,
+        }
+    }
+}
