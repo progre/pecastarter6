@@ -1,6 +1,5 @@
 import { css } from '@emotion/react';
 import { ChannelSettings as Settings } from '../entities/Settings';
-import updatedHistory from '../utils/updatedHistory';
 import HistoryTextField from './molecules/HistoryTextField';
 
 function ChannelContent(props: {
@@ -12,22 +11,22 @@ function ChannelContent(props: {
       <HistoryTextField
         label="ジャンル"
         value={props.settings.genre[0]}
-        history={props.settings.genre.filter((x) => x.trim() !== '')}
+        history={props.settings.genre.slice(1).filter((x) => x.trim() !== '')}
         onChange={(value) =>
           props.onChange({
             ...props.settings,
-            genre: updatedHistory(value, props.settings.genre, 20),
+            genre: [value, ...props.settings.genre.slice(1)],
           })
         }
       />
       <HistoryTextField
         label="概要"
         value={props.settings.desc[0]}
-        history={props.settings.desc.filter((x) => x.trim() !== '')}
+        history={props.settings.desc.slice(1).filter((x) => x.trim() !== '')}
         onChange={(value) =>
           props.onChange({
             ...props.settings,
-            desc: updatedHistory(value, props.settings.desc, 20),
+            desc: [value, ...props.settings.desc.slice(1)],
           })
         }
       />
@@ -51,11 +50,11 @@ export default function ChannelSettings(props: {
       <HistoryTextField
         label="コメント"
         value={props.settings.comment[0]}
-        history={props.settings.comment.filter((x) => x.trim() !== '')}
+        history={props.settings.comment.slice(1).filter((x) => x.trim() !== '')}
         onChange={(value) =>
           props.onChange({
             ...props.settings,
-            comment: updatedHistory(value, props.settings.comment, 20),
+            comment: [value, ...props.settings.comment.slice(1)],
           })
         }
       />
@@ -63,11 +62,13 @@ export default function ChannelSettings(props: {
         label="コンタクト URL"
         placeholder="https://"
         value={props.settings.contactUrl[0]}
-        history={props.settings.contactUrl.filter((x) => x.trim() !== '')}
+        history={props.settings.contactUrl
+          .slice(1)
+          .filter((x) => x.trim() !== '')}
         onChange={(value) =>
           props.onChange({
             ...props.settings,
-            contactUrl: updatedHistory(value, props.settings.contactUrl, 20),
+            contactUrl: [value, ...props.settings.contactUrl.slice(1)],
           })
         }
       />

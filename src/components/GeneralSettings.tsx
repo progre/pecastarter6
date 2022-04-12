@@ -14,7 +14,6 @@ import {
 import { invoke } from '@tauri-apps/api';
 import { useRef, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
-import updatedHistory from '../utils/updatedHistory';
 import HistoryTextField from './molecules/HistoryTextField';
 
 type State = Settings & { workingChannelName: string };
@@ -144,12 +143,14 @@ export default function GeneralSettings(props: {
       <HistoryTextField
         label="チャンネル名"
         required
-        history={props.settings.channelName.filter((x) => x.trim() !== '')}
+        history={props.settings.channelName
+          .slice(1)
+          .filter((x) => x.trim() !== '')}
         value={props.settings.channelName[0]}
         onChange={(value) => {
           const newState = {
             ...props.settings,
-            channelName: updatedHistory(value, props.settings.channelName, 5),
+            channelName: [value, ...props.settings.channelName.slice(1)],
           };
           props.onChange(newState);
         }}

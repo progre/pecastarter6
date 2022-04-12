@@ -81,11 +81,13 @@ impl UiDelegate for AppDelegateImpl {
         settings.yellow_pages_settings = yellow_pages_settings;
         save_settings_and_show_dialog_if_error(&settings).await;
 
-        self.app()
-            .listen_rtmp_if_need(self.app().rtmp_server.lock().await.deref_mut(), &settings)
+        app.listen_rtmp_if_need(app.rtmp_server.lock().await.deref_mut(), &settings)
             .await;
 
-        self.app().update_channel(&settings).await;
+        let broadcasting = app.broadcasting.lock().await;
+        if broadcasting.is_broadcasting() {
+            app.update_channel(&broadcasting, &settings).await;
+        }
     }
 
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings) {
@@ -96,16 +98,19 @@ impl UiDelegate for AppDelegateImpl {
         settings.channel_settings = channel_settings;
         save_settings_and_show_dialog_if_error(&settings).await;
 
-        self.app().update_channel(&settings).await;
+        let broadcasting = app.broadcasting.lock().await;
+        if broadcasting.is_broadcasting() {
+            app.update_channel(&broadcasting, &settings).await;
+            app.update_histories(&mut settings, &app.ui);
+        }
 
-        if let Err(err) = self
-            .app()
+        if let Err(err) = app
             .logger_controller
             .on_change_channel_settings(&settings.channel_settings)
             .await
         {
             let failure = Failure::Warn(err.to_string());
-            self.app().ui.lock().unwrap().notify_failure(&failure);
+            app.ui.lock().unwrap().notify_failure(&failure);
         }
     }
 
@@ -190,6 +195,8 @@ impl RtmpListenerDelegate for AppDelegateImpl {
                 return;
             }
         };
+
+        app.update_histories(app.settings.lock().await.deref_mut(), &app.ui);
 
         app.ui.lock().unwrap().set_rtmp("streaming".to_owned());
 

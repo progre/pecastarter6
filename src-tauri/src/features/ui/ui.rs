@@ -153,6 +153,12 @@ impl Ui {
         }
     }
 
+    pub fn push_settings(&self, settings: Settings) {
+        if let Some(x) = self.lock_window() {
+            x.push_settings(settings);
+        }
+    }
+
     pub fn reset_yp_terms(&self, settings: Settings) {
         if let Some(x) = self.lock_window() {
             x.push_settings(settings);

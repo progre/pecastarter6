@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::{mem::take, ops::Deref, sync::Arc};
 
 use log::warn;
 use tokio::{sync::Mutex, task::JoinHandle};
@@ -45,6 +45,19 @@ async fn run_ui(
         .unwrap()
         .run(initial_rtmp, initial_channel_name, weak)
         .await
+}
+
+fn updated_history(history: Vec<String>, limit: usize) -> Vec<String> {
+    let mut history_iter = history.into_iter();
+    let working_value = history_iter.next().unwrap();
+    vec![working_value.clone(), working_value.clone()]
+        .into_iter()
+        .chain(
+            history_iter
+                .filter(|x| x != &working_value && !x.trim().is_empty())
+                .take(limit - 1),
+        )
+        .collect()
 }
 
 pub struct App {
@@ -140,13 +153,24 @@ impl App {
         }
     }
 
-    pub async fn update_channel(&self, settings: &Settings) {
-        let broadcasting = self.broadcasting.lock().await;
-        if broadcasting.is_broadcasting() {
-            let res = broadcasting.update(&self.yp_configs, settings).await;
-            if let Some(err) = res.err() {
-                self.ui.lock().unwrap().notify_failure(&err);
-            }
+    pub async fn update_channel(&self, broadcasting: &Broadcasting, settings: &Settings) {
+        let res = broadcasting.update(&self.yp_configs, settings).await;
+        if let Some(err) = res.err() {
+            self.ui.lock().unwrap().notify_failure(&err);
         }
+    }
+
+    pub fn update_histories(&self, settings: &mut Settings, ui: &std::sync::Mutex<Ui>) {
+        settings.general_settings.channel_name =
+            updated_history(take(&mut settings.general_settings.channel_name), 5);
+        settings.channel_settings.genre =
+            updated_history(take(&mut settings.channel_settings.genre), 20);
+        settings.channel_settings.desc =
+            updated_history(take(&mut settings.channel_settings.desc), 20);
+        settings.channel_settings.comment =
+            updated_history(take(&mut settings.channel_settings.comment), 20);
+        settings.channel_settings.contact_url =
+            updated_history(take(&mut settings.channel_settings.contact_url), 5);
+        ui.lock().unwrap().push_settings(settings.clone());
     }
 }
