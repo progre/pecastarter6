@@ -106,18 +106,12 @@ impl App {
     }
 
     pub async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
-        let (result, settings) = {
-            let mut settings = self.settings.lock().await;
-            (
-                check_expired_terms(&self.yp_configs, &mut settings).await,
-                settings.clone(),
-            )
-        };
-        match result {
+        let mut settings = self.settings.lock().await;
+        match check_expired_terms(&self.yp_configs, &mut settings).await {
             Ok(true) => true,
             Ok(false) => {
                 save_settings_and_show_dialog_if_error(&settings).await;
-                self.ui.lock().unwrap().reset_yp_terms(settings.clone());
+                self.ui.lock().unwrap().reset_yp_terms(&settings);
                 false
             }
             Err(e) => {
@@ -171,6 +165,6 @@ impl App {
             updated_history(take(&mut settings.channel_settings.comment), 20);
         settings.channel_settings.contact_url =
             updated_history(take(&mut settings.channel_settings.contact_url), 5);
-        ui.lock().unwrap().push_settings(settings.clone());
+        ui.lock().unwrap().push_settings(settings);
     }
 }

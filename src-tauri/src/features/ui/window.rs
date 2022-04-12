@@ -154,7 +154,7 @@ impl Window {
         })
     }
 
-    pub fn push_settings(&self, settings: Settings) {
+    pub fn push_settings(&self, settings: &Settings) {
         self.send("push_settings", serde_json::to_value(settings).unwrap());
     }
 
