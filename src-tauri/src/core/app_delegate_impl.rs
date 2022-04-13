@@ -2,10 +2,11 @@ use std::{
     num::NonZeroU16,
     ops::DerefMut,
     sync::{Arc, Weak},
+    time::Duration,
 };
 
 use async_trait::async_trait;
-use tokio::{net::TcpStream, sync::Mutex};
+use tokio::{net::TcpStream, sync::Mutex, time::sleep};
 
 use crate::{
     core::{
@@ -202,6 +203,11 @@ impl RtmpListenerDelegate for AppDelegateImpl {
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
+
+        // NOTE: If the channel is deleted within 3 seconds of the stream closed,
+        //       a tcp listener on PeerCastStation will remain.
+        //       https://github.com/kumaryu/peercaststation/issues/490
+        sleep(Duration::from_secs(6)).await;
 
         app.ui.lock().unwrap().set_rtmp("listening".to_owned());
 
