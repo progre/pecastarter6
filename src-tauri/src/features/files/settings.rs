@@ -1,7 +1,7 @@
 use std::io::ErrorKind;
 
 use log::error;
-use tokio::fs::{create_dir, read_to_string, write};
+use tokio::fs::{create_dir, read_to_string, rename, write, OpenOptions};
 
 use crate::{
     core::{
@@ -13,8 +13,32 @@ use crate::{
 
 use super::APP_DIR;
 
+async fn rename_bak(base_path: &str) {
+    let mut i = 0;
+    let path = loop {
+        let idx = if i == 0 { "".into() } else { format!(".{}", i) };
+        let path = format!("{}{}.bak", base_path, idx);
+        log::trace!("{:?}", path);
+        if OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .await
+            .is_ok()
+        {
+            break path;
+        }
+        i += 1;
+    };
+
+    if let Err(err) = rename(APP_DIR.join("settings.json"), path).await {
+        log::error!("err {}", err);
+    }
+}
+
 pub async fn load_settings_and_show_dialog_if_error() -> Settings {
-    match read_to_string(APP_DIR.join("settings.json")).await {
+    let path = APP_DIR.join("settings.json");
+    match read_to_string(&path).await {
         Err(err) => {
             if err.kind() != ErrorKind::NotFound {
                 error!("{:?}", err);
@@ -34,6 +58,7 @@ pub async fn load_settings_and_show_dialog_if_error() -> Settings {
                     "設定ファイルが破損しています。({:?})\n設定をリセットします。",
                     err
                 ));
+                rename_bak(&path.to_string_lossy()).await;
                 Settings::default()
             }
             Ok(settings) => {
