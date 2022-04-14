@@ -30,6 +30,11 @@ function CopyableTextField(props: ITextFieldProps) {
       <TextField
         css={css`
           flex-grow: 1;
+
+          > div > div > input {
+            background-color: rgb(243, 242, 241);
+            color: rgb(161, 159, 157);
+          }
         `}
         styles={{
           fieldGroup: {
@@ -38,6 +43,7 @@ function CopyableTextField(props: ITextFieldProps) {
             borderBottomRightRadius: 0,
           },
         }}
+        readOnly
         {...props}
       />
       <TooltipHost
@@ -174,7 +180,6 @@ export default function GeneralSettings(props: {
       />
       <CopyableTextField
         label="OBS にカスタムサーバーとして設定する値"
-        readOnly
         value={serverForObs}
       />
       <Separator />
