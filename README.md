@@ -1,4 +1,4 @@
-PeCa Starter 6
+PeCa Starter 6 [![Build](https://github.com/progre/pecastarter6/actions/workflows/build.yml/badge.svg)](https://github.com/progre/pecastarter6/actions/workflows/build.yml) [![GitHub](https://img.shields.io/github/license/progre/pecastarter6)](https://github.com/progre/pecastarter6/blob/main/LICENSE) [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/progre/pecastarter6)](https://github.com/progre/pecastarter6/releases)
 ============
 
 概要
