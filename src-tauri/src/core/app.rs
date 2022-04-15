@@ -23,11 +23,17 @@ use crate::{
     },
 };
 
-use super::{app_delegate_impl::AppDelegateImpl, entities::settings::ChannelContent};
+use super::{
+    app_rtmp_listener_delegate::AppRtmpListenerDelegate, app_ui_delegate::AppUiDelegate,
+    entities::settings::ChannelContent,
+};
 
-async fn listen_rtmp_if_need(app: &App, app_delegate: &Arc<AppDelegateImpl>) -> bool {
+async fn listen_rtmp_if_need(
+    app: &App,
+    app_rtmp_listener_delegate: &Arc<AppRtmpListenerDelegate>,
+) -> bool {
     let mut rtmp_server = app.rtmp_server.lock().await;
-    let weak = Arc::downgrade(app_delegate);
+    let weak = Arc::downgrade(app_rtmp_listener_delegate);
     rtmp_server.set_delegate(weak);
     app.listen_rtmp_if_need(&mut rtmp_server, app.settings.lock().await.deref())
         .await
@@ -35,11 +41,11 @@ async fn listen_rtmp_if_need(app: &App, app_delegate: &Arc<AppDelegateImpl>) -> 
 
 async fn run_ui(
     app: &App,
-    app_delegate: &Arc<AppDelegateImpl>,
+    app_ui_delegate: &Arc<AppUiDelegate>,
     initial_rtmp: String,
 ) -> JoinHandle<()> {
     let initial_channel_name = app.settings.lock().await.general_settings.channel_name[0].clone();
-    let weak = Arc::downgrade(app_delegate);
+    let weak = Arc::downgrade(app_ui_delegate);
     app.ui
         .lock()
         .unwrap()
@@ -104,23 +110,25 @@ impl App {
 
     pub async fn run() {
         let zelf = Arc::new(Self::new().await);
-        let app_delegate = Arc::new(AppDelegateImpl::new(Arc::downgrade(&zelf)));
+        let app_rtmp_listener_delegate =
+            Arc::new(AppRtmpListenerDelegate::new(Arc::downgrade(&zelf)));
+        let app_ui_delegate = Arc::new(AppUiDelegate::new(Arc::downgrade(&zelf)));
 
         {
-            let app_delegate = app_delegate.clone();
+            let app_ui_delegate = app_ui_delegate.clone();
             zelf.logger_controller
                 .set_on_error(Box::new(move |failure| {
-                    app_delegate.on_error_log_controller(&failure);
+                    app_ui_delegate.on_error_log_controller(&failure);
                 }));
         }
 
-        let initial_rtmp = if listen_rtmp_if_need(&zelf, &app_delegate).await {
+        let initial_rtmp = if listen_rtmp_if_need(&zelf, &app_rtmp_listener_delegate).await {
             "listening"
         } else {
             "idle"
         };
 
-        run_ui(&zelf, &app_delegate, initial_rtmp.to_owned())
+        run_ui(&zelf, &app_ui_delegate, initial_rtmp.to_owned())
             .await
             .await // long long awaiting
             .unwrap();
