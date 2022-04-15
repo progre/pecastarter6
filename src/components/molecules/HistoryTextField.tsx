@@ -16,7 +16,13 @@ export default function HistoryTextField(props: {
       required={props.required}
       allowFreeform
       placeholder={props.placeholder}
-      options={props.history.map((text, key) => ({ key, text }))}
+      options={[...props.history].reverse().map((x) => ({ key: x, text: x }))}
+      styles={{
+        optionsContainer: {
+          display: 'flex',
+          flexDirection: 'column-reverse',
+        },
+      }}
       text={value}
       onItemClick={(_e, option, _i) => setValue(option!!.text)}
       onInputValueChange={(value) => setValue(value)}
