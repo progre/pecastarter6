@@ -10,13 +10,6 @@ export default function YellowPagesPrefixBuilder(props: {
 }) {
   const supportedParams = props.config?.supportedParams ?? [];
 
-  const update = useCallback(
-    (partial: Partial<YPConfigParams>) => {
-      props.onChange({ ...props.value, ...partial });
-    },
-    [props.value, props.onChange]
-  );
-
   return (
     <div
       css={css`
@@ -29,7 +22,13 @@ export default function YellowPagesPrefixBuilder(props: {
         label="名前空間"
         disabled={!supportedParams.includes('namespace')}
         defaultValue={props.value.namespace}
-        onBlur={(e) => update({ namespace: e.target.value })}
+        onBlur={(e) => {
+          const namespace = e.target.value;
+          if (namespace === props.value.namespace) {
+            return;
+          }
+          props.onChange({ ...props.value, namespace });
+        }}
       />
       <Dropdown
         label="ポートチェック"
@@ -42,24 +41,30 @@ export default function YellowPagesPrefixBuilder(props: {
           'ポート&帯域チェック',
           'ポート&高速帯域チェック',
         ].map((text, key) => ({ key, text }))}
-        onChange={(_e, option) =>
-          update({
-            portBandwidthCheck:
-              option?.key as YPConfigParams['portBandwidthCheck'],
-          })
-        }
+        onChange={(_e, option) => {
+          const portBandwidthCheck =
+            option?.key as YPConfigParams['portBandwidthCheck'];
+          if (portBandwidthCheck === props.value.portBandwidthCheck) {
+            return;
+          }
+          props.onChange({ ...props.value, portBandwidthCheck });
+        }}
       />
       <Checkbox
         label="リスナー数を隠す"
         disabled={!supportedParams.includes('hide_listeners')}
         checked={props.value.hideListeners}
-        onChange={(_e, checked) => update({ hideListeners: checked })}
+        onChange={(_e, checked) =>
+          props.onChange({ ...props.value, hideListeners: checked === true })
+        }
       />
       <Checkbox
         label="ログを残さない"
         disabled={!supportedParams.includes('no_log')}
         checked={props.value.noLog}
-        onChange={(_e, checked) => update({ noLog: checked })}
+        onChange={(_e, checked) =>
+          props.onChange({ ...props.value, noLog: checked === true })
+        }
       />
       <TextField
         label="アイコン"
@@ -67,7 +72,13 @@ export default function YellowPagesPrefixBuilder(props: {
         disabled={!supportedParams.includes('icon')}
         placeholder="https://"
         defaultValue={props.value.icon}
-        onBlur={(e) => update({ icon: e.target.value })}
+        onBlur={(e) => {
+          const icon = e.target.value;
+          if (icon === props.value.icon) {
+            return;
+          }
+          props.onChange({ ...props.value, icon });
+        }}
       />
     </div>
   );

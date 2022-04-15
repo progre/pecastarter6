@@ -142,11 +142,13 @@ export default function ChannelSettings(props: {
           }));
         }}
         onBlur={() => {
-          props.onChange({
-            ...props.settings,
-            genre: channelContent.genre,
-            desc: channelContent.desc,
-          });
+          if (
+            channelContent.genre === props.settings.genre &&
+            channelContent.desc === props.settings.desc
+          ) {
+            return;
+          }
+          props.onChange({ ...props.settings, ...channelContent });
         }}
       />
       <div

@@ -20,7 +20,12 @@ export default function HistoryTextField(props: {
       text={value}
       onItemClick={(_e, option, _i) => setValue(option!!.text)}
       onInputValueChange={(value) => setValue(value)}
-      onBlurCapture={() => props.onChange(value)}
+      onBlurCapture={() => {
+        if (value === props.value) {
+          return;
+        }
+        props.onChange(value);
+      }}
     />
   );
 }

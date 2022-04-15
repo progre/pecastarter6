@@ -48,12 +48,12 @@ export default function OtherSettings(props: {
           disabled={!props.settings.logEnabled}
           value={logOutputDirectory}
           onChange={(_ev, newValue) => setLogOutputDirectory(newValue!!)}
-          onBlur={(ev) =>
-            props.onChange({
-              ...props.settings,
-              logOutputDirectory: ev.target.value,
-            })
-          }
+          onBlur={() => {
+            if (logOutputDirectory === props.settings.logOutputDirectory) {
+              return;
+            }
+            props.onChange({ ...props.settings, logOutputDirectory });
+          }}
         />
         <DefaultButton
           css={css`
@@ -64,15 +64,21 @@ export default function OtherSettings(props: {
           iconProps={{ iconName: 'folderopen' }}
           disabled={!props.settings.logEnabled}
           onClick={async () => {
-            const logOutputDirectory = (await dialog.open({
+            const newLogOutputDirectory = (await dialog.open({
               defaultPath: props.settings.logOutputDirectory,
               directory: true,
             })) as string | null;
-            if (logOutputDirectory == null) {
+            if (
+              newLogOutputDirectory == null ||
+              newLogOutputDirectory === logOutputDirectory
+            ) {
               return;
             }
-            setLogOutputDirectory(logOutputDirectory);
-            props.onChange({ ...props.settings, logOutputDirectory });
+            setLogOutputDirectory(newLogOutputDirectory);
+            props.onChange({
+              ...props.settings,
+              logOutputDirectory: newLogOutputDirectory,
+            });
           }}
         />
       </div>
