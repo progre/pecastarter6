@@ -128,7 +128,7 @@ impl Logger {
         let path = format!(
             "{}/{}_{}.csv",
             directory,
-            Local::now().format("%Y%m%d%H%M%S"),
+            Local::now().format("%Y%m%dT%H%M%S"),
             channel_name
         );
         let peer_cast_port = Arc::new(std::sync::Mutex::new(peer_cast_port));
