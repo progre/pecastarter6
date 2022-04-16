@@ -1,5 +1,5 @@
 import { ComboBox } from '@fluentui/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 export default function HistoryTextField(props: {
   label: string;
@@ -10,8 +10,10 @@ export default function HistoryTextField(props: {
   onChange: (value: string) => void;
 }) {
   const [value, setValue] = useState(props.value);
+  const ref = useRef<HTMLInputElement>(null);
   return (
     <ComboBox
+      ref={ref}
       label={props.label}
       required={props.required}
       allowFreeform
@@ -24,6 +26,11 @@ export default function HistoryTextField(props: {
         },
       }}
       text={value}
+      onRenderList={(props, defaultRender) => (
+        <div style={{ width: ref.current!!.clientWidth - 30 - 2 }}>
+          {defaultRender!!(props)}
+        </div>
+      )}
       onItemClick={(_e, option, _i) => setValue(option!!.text)}
       onInputValueChange={(value) => setValue(value)}
       onBlurCapture={() => {
