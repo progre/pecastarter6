@@ -14,6 +14,8 @@ import {
 import HistoryTextField from './molecules/HistoryTextField';
 
 function History(props: {
+  currentGenre: string;
+  currentDesc: string;
   history: readonly ChannelContent[];
   onChange(value: ChannelContent): void;
 }): JSX.Element {
@@ -40,7 +42,7 @@ function History(props: {
           data: x,
           text: `${x.genre} - ${x.desc}`,
         }))}
-        selectedKey={null}
+        selectedKey={`${props.currentGenre} - ${props.currentDesc}`}
         onChange={(_e, option, _i) => props.onChange(option!!.data!!)}
       />
       <DefaultButton
@@ -79,6 +81,8 @@ function ChannelContentView(props: {
         `}
       >
         <History
+          currentGenre={props.channelContent.genre}
+          currentDesc={props.channelContent.desc}
           history={props.history}
           onChange={(newChannelContent) =>
             props.onChange({

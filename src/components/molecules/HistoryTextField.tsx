@@ -1,3 +1,4 @@
+import { css } from '@emotion/react';
 import { ComboBox } from '@fluentui/react';
 import { useRef, useState } from 'react';
 
@@ -28,6 +29,23 @@ export default function HistoryTextField(props: {
       text={value}
       onRenderList={(props, defaultRender) => (
         <div style={{ width: ref.current!!.clientWidth - 30 - 2 }}>
+          {defaultRender!!(props)}
+        </div>
+      )}
+      onRenderItem={(props, defaultRender) => (
+        <div
+          key={props?.key}
+          css={
+            props?.key !== value
+              ? null
+              : css`
+                  > button,
+                  > button:hover {
+                    background-color: rgb(237, 235, 233);
+                  }
+                `
+          }
+        >
           {defaultRender!!(props)}
         </div>
       )}
