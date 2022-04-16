@@ -26,6 +26,7 @@ export default function HistoryTextField(props: {
           flexDirection: 'column-reverse',
         },
       }}
+      selectedKey={null}
       text={value}
       onRenderList={(props, defaultRender) => (
         <div style={{ width: ref.current!!.clientWidth - 30 - 2 }}>
