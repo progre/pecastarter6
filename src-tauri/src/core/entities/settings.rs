@@ -14,6 +14,14 @@ impl Default for PeerCastType {
     }
 }
 
+fn at_least_one_value(list: Vec<String>) -> Vec<String> {
+    if list.is_empty() {
+        vec!["".into()]
+    } else {
+        list
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeneralSettings {
@@ -117,8 +125,8 @@ impl StoredChannelSettings {
             channel_content_history,
             genre,
             desc,
-            comment: self.comment,
-            contact_url: self.contact_url,
+            comment: at_least_one_value(self.comment),
+            contact_url: at_least_one_value(self.contact_url),
         }
     }
 }
@@ -186,7 +194,8 @@ pub struct StoredSettings {
 }
 
 impl StoredSettings {
-    pub fn into_internal(self) -> Settings {
+    pub fn into_internal(mut self) -> Settings {
+        self.general_settings.channel_name = at_least_one_value(self.general_settings.channel_name);
         Settings {
             general_settings: self.general_settings,
             yellow_pages_settings: self.yellow_pages_settings,
