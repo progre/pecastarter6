@@ -86,13 +86,14 @@ impl UiDelegate for AppUiDelegate {
         let app = self.app();
         let mut settings = app.settings.lock().await;
         settings.channel_settings = channel_settings;
-        save_settings_and_show_dialog_if_error(&settings).await;
 
         let broadcasting = app.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
             app.update_channel(&broadcasting, &settings).await;
             app.update_histories(&mut settings, &app.ui);
         }
+
+        save_settings_and_show_dialog_if_error(&settings).await;
 
         if let Err(err) = app
             .logger_controller

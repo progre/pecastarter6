@@ -1,6 +1,5 @@
 use std::{
     num::NonZeroU16,
-    ops::DerefMut,
     sync::{Arc, Weak},
     time::Duration,
 };
@@ -17,7 +16,8 @@ use crate::{
         },
     },
     features::{
-        logger::LoggerController, peercast::broadcasting::Broadcasting, rtmp::RtmpListenerDelegate,
+        files::settings::save_settings_and_show_dialog_if_error, logger::LoggerController,
+        peercast::broadcasting::Broadcasting, rtmp::RtmpListenerDelegate,
     },
 };
 
@@ -89,7 +89,11 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
             }
         };
 
-        app.update_histories(app.settings.lock().await.deref_mut(), &app.ui);
+        {
+            let mut settings = app.settings.lock().await;
+            app.update_histories(&mut settings, &app.ui);
+            save_settings_and_show_dialog_if_error(&settings).await;
+        }
 
         app.ui.lock().unwrap().set_rtmp("streaming".to_owned());
 
