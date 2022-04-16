@@ -65,6 +65,7 @@ function ChannelContentView(props: {
   history: readonly ChannelContent[];
   channelContent: ChannelContent;
   onChange(value: Partial<ChannelContent>): void;
+  onSelect(value: ChannelContent): void;
   onBlur: DOMAttributes<HTMLDivElement>['onBlur'];
 }): JSX.Element {
   return (
@@ -85,7 +86,7 @@ function ChannelContentView(props: {
           currentDesc={props.channelContent.desc}
           history={props.history}
           onChange={(newChannelContent) =>
-            props.onChange({
+            props.onSelect({
               genre: newChannelContent.genre,
               desc: newChannelContent.desc,
             })
@@ -144,6 +145,16 @@ export default function ChannelSettings(props: {
             ...channelContent,
             ...newValue,
           }));
+        }}
+        onSelect={(newChannelContent) => {
+          setChannelContent(newChannelContent);
+          if (
+            newChannelContent.genre === props.settings.genre &&
+            newChannelContent.desc === props.settings.desc
+          ) {
+            return;
+          }
+          props.onChange({ ...props.settings, ...newChannelContent });
         }}
         onBlur={() => {
           if (
