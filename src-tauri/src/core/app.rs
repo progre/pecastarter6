@@ -53,16 +53,18 @@ async fn run_ui(
         .await
 }
 
-fn updated_history(history: Vec<String>, limit: usize) -> Vec<String> {
+fn updated_value_with_history(history: Vec<String>, limit: usize) -> Vec<String> {
     let mut history_iter = history.into_iter();
     let working_value = history_iter.next().unwrap();
-    vec![working_value.clone(), working_value.clone()]
+    let updated_history = [working_value.clone()]
         .into_iter()
-        .chain(
-            history_iter
-                .filter(|x| x != &working_value && !x.trim().is_empty())
-                .take(limit - 1),
-        )
+        .chain(history_iter.filter(|x| x != &working_value))
+        .filter(|x| !x.trim().is_empty())
+        .take(limit);
+
+    [working_value.clone()]
+        .into_iter()
+        .chain(updated_history)
         .collect()
 }
 
@@ -72,18 +74,16 @@ fn updated_channel_content_history(
     desc: &str,
     limit: usize,
 ) -> Vec<ChannelContent> {
-    let current_channel_content = ChannelContent {
+    let history_iter = history.into_iter();
+    let working_value = ChannelContent {
         genre: genre.into(),
         desc: desc.into(),
     };
-    vec![current_channel_content.clone()]
+    [working_value.clone()]
         .into_iter()
-        .chain(
-            history
-                .into_iter()
-                .filter(|x| x != &current_channel_content)
-                .take(limit - 1),
-        )
+        .chain(history_iter.filter(|x| x != &working_value))
+        .filter(|x| !(x.genre.is_empty() && x.desc.is_empty()))
+        .take(limit)
         .collect()
 }
 
@@ -185,7 +185,7 @@ impl App {
 
     pub fn update_histories(&self, settings: &mut Settings, ui: &std::sync::Mutex<Ui>) {
         settings.general_settings.channel_name =
-            updated_history(take(&mut settings.general_settings.channel_name), 5);
+            updated_value_with_history(take(&mut settings.general_settings.channel_name), 5);
         settings.channel_settings.channel_content_history = updated_channel_content_history(
             take(&mut settings.channel_settings.channel_content_history),
             &settings.channel_settings.genre,
@@ -193,9 +193,9 @@ impl App {
             20,
         );
         settings.channel_settings.comment =
-            updated_history(take(&mut settings.channel_settings.comment), 20);
+            updated_value_with_history(take(&mut settings.channel_settings.comment), 20);
         settings.channel_settings.contact_url =
-            updated_history(take(&mut settings.channel_settings.contact_url), 5);
+            updated_value_with_history(take(&mut settings.channel_settings.contact_url), 5);
         ui.lock().unwrap().push_settings(settings);
     }
 }
