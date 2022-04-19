@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use once_cell::sync::Lazy;
 use tauri::{api::path, generate_context};
 
-mod dialog;
 pub mod settings;
 pub mod yp_configs;
 

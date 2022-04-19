@@ -3,12 +3,9 @@ use std::io::ErrorKind;
 use log::error;
 use tokio::fs::{create_dir, read_to_string, rename, write, OpenOptions};
 
-use crate::{
-    core::{
-        entities::settings::{Settings, StoredSettings, StoringSettings},
-        utils::tcp::find_free_port,
-    },
-    features::files::dialog::show_file_error_dialog,
+use crate::core::{
+    entities::settings::{Settings, StoredSettings, StoringSettings},
+    utils::{dialog::show_dialog, tcp::find_free_port},
 };
 
 use super::APP_DIR;
@@ -42,7 +39,7 @@ pub async fn load_settings_and_show_dialog_if_error() -> Settings {
         Err(err) => {
             if err.kind() != ErrorKind::NotFound {
                 error!("{:?}", err);
-                show_file_error_dialog(&format!(
+                show_dialog(&format!(
                     "設定ファイルの読み込みに失敗しました。({:?})",
                     err
                 ));
@@ -54,7 +51,7 @@ pub async fn load_settings_and_show_dialog_if_error() -> Settings {
         Ok(str) => match deser_hjson::from_str::<StoredSettings>(&str) {
             Err(err) => {
                 error!("{:?}", err);
-                show_file_error_dialog(&format!(
+                show_dialog(&format!(
                     "設定ファイルが破損しています。({:?})\n設定をリセットします。",
                     err
                 ));
@@ -82,6 +79,6 @@ pub async fn save_settings_and_show_dialog_if_error(settings: &Settings) {
     .await;
     if let Err(err) = opt {
         error!("{:?}", err);
-        show_file_error_dialog(&format!("設定ファイルの保存に失敗しました。({:?})", err));
+        show_dialog(&format!("設定ファイルの保存に失敗しました。({:?})", err));
     }
 }

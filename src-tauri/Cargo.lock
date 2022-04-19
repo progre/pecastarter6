@@ -75,6 +75,7 @@ dependencies = [
  "sha2",
  "tauri",
  "tauri-build",
+ "tauri-runtime",
  "tokio",
 ]
 

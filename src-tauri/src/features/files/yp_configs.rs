@@ -4,7 +4,7 @@ use anyhow::Result;
 use log::error;
 use tokio::fs::{read_dir, read_to_string};
 
-use crate::{core::entities::yp_config::YPConfig, features::files::dialog::show_file_error_dialog};
+use crate::core::{entities::yp_config::YPConfig, utils::dialog::show_dialog};
 
 use super::APP_DIR;
 
@@ -18,7 +18,7 @@ async fn read_yp_config_and_show_dialog_if_error(path: PathBuf) -> Option<YPConf
         Ok(yp_configs) => Some(yp_configs),
         Err(err) => {
             error!("{:?}", err);
-            show_file_error_dialog(&format!(
+            show_dialog(&format!(
                 "YP設定ファイルの読み込みに失敗しました。({:?})",
                 err
             ));

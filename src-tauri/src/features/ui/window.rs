@@ -19,7 +19,7 @@ use crate::{
             },
             yp_config::YPConfig,
         },
-        utils::tcp::find_free_port,
+        utils::{dialog::show_dialog, tcp::find_free_port},
     },
     features::{files::APP_DIR, terms_check},
 };
@@ -127,6 +127,20 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
         })
         .any_thread()
         .build(generate_context!())
+        .map_err(|err| {
+            let mut note = "";
+            if let tauri::Error::Runtime(tauri_runtime::Error::CreateWebview(err)) = &err {
+                if err.to_string().contains("WebView2") {
+                    note = "WebView2 ランタイムをインストールするとこのエラーが解決する可能性があります。"
+                }
+            }
+            show_dialog(&format!(
+                "アプリケーションの起動に失敗しました。{}({}) ",
+                note,
+                err
+            ));
+            err
+        })
         .expect("error while running tauri application")
 }
 
