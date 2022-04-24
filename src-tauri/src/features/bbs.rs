@@ -96,20 +96,17 @@ fn listen_jpnkn_bbs_thread(
 #[derive(Getters)]
 pub struct JpnknBbsListener {
     join_handle: JoinHandle<()>,
-    #[getset(get = "pub")]
-    url: String,
     contact_status: Arc<std::sync::Mutex<ContactStatus>>,
 }
 
 impl JpnknBbsListener {
     pub fn listen(
-        url: String,
+        url: &str,
         delegate: Weak<dyn Send + Sync + BbsListenerDelegate>,
     ) -> Option<Self> {
-        if let Some(jpnkn_bbs_thread_listener) = listen_jpnkn_bbs_thread(&url, delegate.clone()) {
+        if let Some(jpnkn_bbs_thread_listener) = listen_jpnkn_bbs_thread(url, delegate.clone()) {
             return Some(Self {
                 join_handle: jpnkn_bbs_thread_listener.0,
-                url,
                 contact_status: jpnkn_bbs_thread_listener.1,
             });
         }
@@ -126,7 +123,9 @@ impl JpnknBbsListener {
 }
 
 pub struct BbsListenerContainer {
+    url: String,
     jpnkn_bbs_listener: Option<JpnknBbsListener>,
+    title: Arc<std::sync::Mutex<String>>,
     delegate: Weak<dyn Send + Sync + BbsListenerDelegate>,
 }
 
@@ -144,29 +143,38 @@ impl BbsListenerContainer {
         let empty_delegate = Arc::new(EmptyBbsListenerDelegate {});
         let delegate = Arc::downgrade(&empty_delegate);
         Self {
+            url: Default::default(),
             jpnkn_bbs_listener: None,
+            title: Default::default(),
             delegate,
         }
     }
 
-    pub fn contact_status(&self) -> Option<ContactStatus> {
-        Some(self.jpnkn_bbs_listener.as_ref()?.contact_status())
+    pub fn contact_status(&self) -> ContactStatus {
+        self.jpnkn_bbs_listener
+            .as_ref()
+            .map(|x| x.contact_status())
+            .unwrap_or_else(|| ContactStatus {
+                title: self.title.lock().unwrap().clone(),
+                res_count: 0,
+            })
     }
 
     pub fn set_delegate(&mut self, delegate: Weak<dyn Send + Sync + BbsListenerDelegate>) {
-        self.delegate = delegate.clone();
+        self.delegate = delegate;
         if let Some(mut jpnkn_bbs_listener) = take(&mut self.jpnkn_bbs_listener) {
             jpnkn_bbs_listener.abort();
-            self.jpnkn_bbs_listener =
-                JpnknBbsListener::listen(jpnkn_bbs_listener.url, self.delegate.clone());
+            self.jpnkn_bbs_listener = JpnknBbsListener::listen(&self.url, self.delegate.clone());
         }
     }
 
     pub fn set_url(&mut self, url: String) {
+        if url == self.url {
+            return;
+        }
+        self.url = url;
+        *self.title.lock().unwrap() = Default::default();
         if let Some(current) = &mut self.jpnkn_bbs_listener {
-            if current.url() == &url {
-                return;
-            }
             current.abort();
             self.jpnkn_bbs_listener = None;
         }
@@ -175,17 +183,19 @@ impl BbsListenerContainer {
             .unwrap()
             .on_update_contact_status(&Default::default());
         if let Some(jpnkn_bbs_thread_listener) =
-            listen_jpnkn_bbs_thread(&url, self.delegate.clone())
+            listen_jpnkn_bbs_thread(&self.url, self.delegate.clone())
         {
             self.jpnkn_bbs_listener = Some(JpnknBbsListener {
                 join_handle: jpnkn_bbs_thread_listener.0,
-                url,
                 contact_status: jpnkn_bbs_thread_listener.1,
             });
         } else {
+            let url = self.url.clone();
             let delegate = self.delegate.clone();
+            let title_mutex = self.title.clone();
             spawn(async move {
                 if let Some(title) = fetch_html_title(&url).await {
+                    *title_mutex.lock().unwrap() = title.clone();
                     delegate
                         .upgrade()
                         .unwrap()

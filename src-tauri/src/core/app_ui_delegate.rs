@@ -42,12 +42,7 @@ impl UiDelegate for AppUiDelegate {
         let app = self.app();
         let yp_configs = app.yp_configs.clone();
         let settings = app.settings.lock().await.clone();
-        let contact_status = app
-            .bbs_listener_container
-            .lock()
-            .unwrap()
-            .contact_status()
-            .unwrap_or_default();
+        let contact_status = app.bbs_listener_container.lock().unwrap().contact_status();
         (yp_configs, settings, contact_status)
     }
 
