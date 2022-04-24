@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env::current_exe, io::ErrorKind, path::PathBuf};
+use std::{collections::BTreeMap, env::current_exe, io::ErrorKind, path::PathBuf};
 
 use anyhow::Result;
 use log::error;
@@ -31,7 +31,7 @@ pub async fn read_yp_configs_and_show_dialog_if_error() -> Vec<YPConfig> {
     let exe_dir_yp = current_exe().unwrap().with_file_name("yp");
     let app_dir_yp = APP_DIR.join("yp");
 
-    let mut yp_configs = HashMap::new();
+    let mut yp_configs = BTreeMap::new();
 
     for dir in [app_dir_yp, exe_dir_yp] {
         log::trace!("{:?}", dir);
@@ -51,7 +51,7 @@ pub async fn read_yp_configs_and_show_dialog_if_error() -> Vec<YPConfig> {
                 || !entry.file_type().await.unwrap().is_file()
             {
                 continue;
-            };
+            }
             if let Some(config) = read_yp_config_and_show_dialog_if_error(entry.path()).await {
                 yp_configs.insert(file_name, config);
             }
