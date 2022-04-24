@@ -25,7 +25,7 @@ impl BbsListenerDelegate for AppBbsListenerDelegate {
             .push_contact_status(contact_status);
     }
 
-    fn on_update_contact_url(&self, url: String) {
+    fn on_update_contact_url(&self, _url: String) {
         todo!()
     }
 }

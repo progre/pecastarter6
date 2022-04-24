@@ -15,6 +15,16 @@ pub trait BbsListenerDelegate {
     fn on_update_contact_url(&self, url: String);
 }
 
+async fn fetch_html_title(url: &str) -> Option<String> {
+    let res = reqwest::get(url).await.ok()?;
+    let html = res.text().await.unwrap();
+    Some(
+        Regex::new(r"<title>(.+?)</title>")
+            .unwrap()
+            .captures(&html)?[1]
+            .to_owned(),
+    )
+}
 async fn fetch_subject_txt(board: &str) -> Vec<(u32, String, u16)> {
     let res = reqwest::get(format!("https://bbs.jpnkn.com/{}/subject.txt", board))
         .await
@@ -62,6 +72,27 @@ async fn tick(
         .on_update_contact_status(&contact_status);
 }
 
+fn listen_jpnkn_bbs_thread(
+    url: &str,
+    delegate: Weak<dyn Send + Sync + BbsListenerDelegate>,
+) -> Option<(JoinHandle<()>, Arc<std::sync::Mutex<ContactStatus>>)> {
+    let c = Regex::new(r"^https://bbs\.jpnkn\.com/test/read.cgi/([^/]+)/([0-9]+)/")
+        .unwrap()
+        .captures(url)?;
+    let board = c[1].to_owned();
+    let mut thread = c[2].parse::<u32>().unwrap();
+    let contact_status = Arc::new(std::sync::Mutex::new(Default::default()));
+    let contact_status_clone = contact_status.clone();
+    let join_handle = spawn(async move {
+        let mut interval = interval(Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            tick(&board, &mut thread, &contact_status_clone, &delegate).await;
+        }
+    });
+    Some((join_handle, contact_status))
+}
+
 #[derive(Getters)]
 pub struct JpnknBbsListener {
     join_handle: JoinHandle<()>,
@@ -75,26 +106,14 @@ impl JpnknBbsListener {
         url: String,
         delegate: Weak<dyn Send + Sync + BbsListenerDelegate>,
     ) -> Option<Self> {
-        let c = Regex::new(r"^https://bbs\.jpnkn\.com/test/read.cgi/([^/]+)/([0-9]+)/")
-            .unwrap()
-            .captures(&url)?;
-        log::trace!("{:?}", c);
-        let board = c[1].to_owned();
-        let mut thread = c[2].parse::<u32>().unwrap();
-        let contact_status = Arc::new(std::sync::Mutex::new(Default::default()));
-        let contact_status_clone = contact_status.clone();
-        let join_handle = spawn(async move {
-            let mut interval = interval(Duration::from_secs(60));
-            loop {
-                interval.tick().await;
-                tick(&board, &mut thread, &contact_status_clone, &delegate).await;
-            }
-        });
-        Some(Self {
-            join_handle,
-            url,
-            contact_status,
-        })
+        if let Some(jpnkn_bbs_thread_listener) = listen_jpnkn_bbs_thread(&url, delegate.clone()) {
+            return Some(Self {
+                join_handle: jpnkn_bbs_thread_listener.0,
+                url,
+                contact_status: jpnkn_bbs_thread_listener.1,
+            });
+        }
+        None
     }
 
     pub fn contact_status(&self) -> ContactStatus {
@@ -149,11 +168,33 @@ impl BbsListenerContainer {
                 return;
             }
             current.abort();
+            self.jpnkn_bbs_listener = None;
         }
         self.delegate
             .upgrade()
             .unwrap()
             .on_update_contact_status(&Default::default());
-        self.jpnkn_bbs_listener = JpnknBbsListener::listen(url, self.delegate.clone());
+        if let Some(jpnkn_bbs_thread_listener) =
+            listen_jpnkn_bbs_thread(&url, self.delegate.clone())
+        {
+            self.jpnkn_bbs_listener = Some(JpnknBbsListener {
+                join_handle: jpnkn_bbs_thread_listener.0,
+                url,
+                contact_status: jpnkn_bbs_thread_listener.1,
+            });
+        } else {
+            let delegate = self.delegate.clone();
+            spawn(async move {
+                if let Some(title) = fetch_html_title(&url).await {
+                    delegate
+                        .upgrade()
+                        .unwrap()
+                        .on_update_contact_status(&ContactStatus {
+                            title,
+                            res_count: 0,
+                        });
+                }
+            });
+        }
     }
 }

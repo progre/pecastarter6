@@ -215,6 +215,7 @@ export default function ChannelSettings(props: {
           <Text
             css={css`
               margin-left: 0.25em;
+              ${props.contactStatus.resCount === 0 ? 'display: none' : ''}
             `}
             variant="small"
           >
