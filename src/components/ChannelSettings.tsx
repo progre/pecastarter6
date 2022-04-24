@@ -4,6 +4,7 @@ import {
   Dropdown,
   IDropdown,
   ResponsiveMode,
+  Text,
   TextField,
 } from '@fluentui/react';
 import { DOMAttributes, useRef, useState } from 'react';
@@ -122,6 +123,7 @@ function ChannelContentView(props: {
 
 export default function ChannelSettings(props: {
   settings: Settings;
+  contactStatus: { title: string; resCount: number };
   onChange(value: Settings): void;
 }) {
   const [channelContent, setChannelContent] = useState({
@@ -198,6 +200,27 @@ export default function ChannelSettings(props: {
             })
           }
         />
+        <div
+          css={css`
+            width: 100%;
+            display: ${props.contactStatus.title === '' ? 'none' : 'flex'};
+            margin-top: 1ex;
+          `}
+        >
+          <Text nowrap variant="small">
+            <a target="_blank" href={props.settings.contactUrl[0]}>
+              {props.contactStatus.title}
+            </a>
+          </Text>
+          <Text
+            css={css`
+              margin-left: 0.25em;
+            `}
+            variant="small"
+          >
+            ({props.contactStatus.resCount})
+          </Text>
+        </div>
       </div>
     </div>
   );

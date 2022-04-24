@@ -14,6 +14,7 @@ use tokio::task::JoinHandle;
 use crate::{
     core::{
         entities::{
+            contact_status::ContactStatus,
             settings::{
                 ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
             },
@@ -40,7 +41,7 @@ use crate::{
 #[async_trait]
 pub trait WindowDelegate {
     fn on_load_page(&self);
-    async fn initial_data(&self) -> (Vec<YPConfig>, Settings);
+    async fn initial_data(&self) -> (Vec<YPConfig>, Settings, ContactStatus);
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings);
@@ -170,6 +171,13 @@ impl Window {
 
     pub fn push_settings(&self, settings: &Settings) {
         self.send("push_settings", serde_json::to_value(settings).unwrap());
+    }
+
+    pub fn push_contact_status(&self, contact_status: &ContactStatus) {
+        self.send(
+            "push_contact_status",
+            serde_json::to_value(contact_status).unwrap(),
+        );
     }
 
     pub fn notify(&self, level: &str, message: &str) {

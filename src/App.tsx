@@ -42,6 +42,7 @@ function initialTab(ypConfigs: readonly YPConfig[], defaultSettings: Settings) {
 export default function App(props: {
   ypConfigs: readonly YPConfig[];
   defaultSettings: Settings;
+  contactStatus: { title: string; resCount: number };
 }) {
   const [notifications, setNotifications] = useState<
     readonly {
@@ -50,6 +51,7 @@ export default function App(props: {
     }[]
   >([]);
   const [settings, setSettings] = useState(props.defaultSettings);
+  const [contactStatus, setContactStatus] = useState(props.contactStatus);
   const [status, setStatus] = useState(initialStatus);
 
   useEffect(() => {
@@ -77,6 +79,12 @@ export default function App(props: {
         setSettings(ev.payload);
       }
     );
+    const pushContactStatusPromise = listenWrapped(
+      'push_contact_status',
+      (ev: Event<{ title: string; resCount: number }>) => {
+        setContactStatus(ev.payload);
+      }
+    );
     const statusPromise = listen('status', (ev: Event<Status>) => {
       setStatus(ev.payload);
     });
@@ -97,6 +105,7 @@ export default function App(props: {
     );
     return () => {
       notifyPromise.then((unlistenFn) => unlistenFn());
+      pushContactStatusPromise.then((unlistenFn) => unlistenFn());
       pushSettingsPromise.then((unlistenFn) => unlistenFn());
       statusPromise.then((unlistenFn) => unlistenFn());
       closeRequestedPromise.then((unlistenFn) => unlistenFn());
@@ -130,6 +139,7 @@ export default function App(props: {
         <TabContent label="チャンネル情報">
           <ChannelSettings
             settings={settings.channelSettings}
+            contactStatus={contactStatus}
             onChange={(channelSettings) => {
               invoke('put_settings', { channelSettings });
               setSettings((settings) => ({ ...settings, channelSettings }));

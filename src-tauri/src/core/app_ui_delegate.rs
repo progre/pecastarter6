@@ -18,7 +18,7 @@ use crate::{
     features::{files::settings::save_settings_and_show_dialog_if_error, ui::UiDelegate},
 };
 
-use super::app::App;
+use super::{app::App, entities::contact_status::ContactStatus};
 
 pub struct AppUiDelegate(Weak<App>);
 
@@ -38,11 +38,17 @@ impl AppUiDelegate {
 
 #[async_trait]
 impl UiDelegate for AppUiDelegate {
-    async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
-        (
-            self.app().yp_configs.clone(),
-            self.app().settings.lock().await.clone(),
-        )
+    async fn initial_data(&self) -> (Vec<YPConfig>, Settings, ContactStatus) {
+        let app = self.app();
+        let yp_configs = app.yp_configs.clone();
+        let settings = app.settings.lock().await.clone();
+        let contact_status = app
+            .bbs_listener_container
+            .lock()
+            .unwrap()
+            .contact_status()
+            .unwrap_or_default();
+        (yp_configs, settings, contact_status)
     }
 
     async fn on_change_general_settings(&self, general_settings: GeneralSettings) {
@@ -94,6 +100,11 @@ impl UiDelegate for AppUiDelegate {
         }
 
         save_settings_and_show_dialog_if_error(&settings).await;
+
+        app.bbs_listener_container
+            .lock()
+            .unwrap()
+            .set_url(settings.channel_settings.contact_url[0].to_owned());
 
         if let Err(err) = app
             .logger_controller

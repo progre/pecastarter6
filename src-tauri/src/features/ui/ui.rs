@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 
 use crate::core::{
     entities::{
+        contact_status::ContactStatus,
         settings::{
             ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
         },
@@ -19,7 +20,7 @@ use super::window::{Window, WindowDelegate};
 
 #[async_trait]
 pub trait UiDelegate {
-    async fn initial_data(&self) -> (Vec<YPConfig>, Settings);
+    async fn initial_data(&self) -> (Vec<YPConfig>, Settings, ContactStatus);
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
     async fn on_change_channel_settings(&self, channel_settings: ChannelSettings);
@@ -67,7 +68,7 @@ impl WindowDelegate for WindowDelegateImpl {
         self.window.lock().unwrap().set_title_status(title_status);
     }
 
-    async fn initial_data(&self) -> (Vec<YPConfig>, Settings) {
+    async fn initial_data(&self) -> (Vec<YPConfig>, Settings, ContactStatus) {
         self.ui_delegate().initial_data().await
     }
 
@@ -156,6 +157,12 @@ impl Ui {
     pub fn push_settings(&self, settings: &Settings) {
         if let Some(x) = self.lock_window() {
             x.push_settings(settings);
+        }
+    }
+
+    pub fn push_contact_status(&self, contact_status: &ContactStatus) {
+        if let Some(x) = self.lock_window() {
+            x.push_contact_status(contact_status);
         }
     }
 

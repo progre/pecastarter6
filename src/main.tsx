@@ -11,13 +11,14 @@ import './index.css';
 initFluentUI();
 
 async function main() {
-  const [ypConfigs, settings] = await invoke('initial_data');
+  const [ypConfigs, settings, contactStatus] = await invoke('initial_data');
 
   ReactDOM.render(
     <React.StrictMode>
       <App
         ypConfigs={ypConfigs as readonly YPConfig[]}
         defaultSettings={settings as Settings}
+        contactStatus={contactStatus}
       />
     </React.StrictMode>,
     document.getElementById('root')

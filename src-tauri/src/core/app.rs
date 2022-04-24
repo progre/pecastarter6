@@ -9,6 +9,7 @@ use crate::{
         utils::failure::Failure,
     },
     features::{
+        bbs::BbsListenerContainer,
         files::{
             settings::{
                 load_settings_and_show_dialog_if_error, save_settings_and_show_dialog_if_error,
@@ -24,6 +25,7 @@ use crate::{
 };
 
 use super::{
+    app_bbs_listener_delegate::AppBbsListenerDelegate,
     app_rtmp_listener_delegate::AppRtmpListenerDelegate, app_ui_delegate::AppUiDelegate,
     entities::settings::ChannelContent,
 };
@@ -93,6 +95,7 @@ pub struct App {
     pub ui: std::sync::Mutex<Ui>,
     pub rtmp_server: Mutex<RtmpServer>,
     pub broadcasting: Mutex<Broadcasting>,
+    pub bbs_listener_container: std::sync::Mutex<BbsListenerContainer>,
     pub logger_controller: LoggerController,
 }
 
@@ -104,6 +107,7 @@ impl App {
             ui: std::sync::Mutex::new(Ui::new()),
             rtmp_server: Mutex::new(RtmpServer::new()),
             broadcasting: Mutex::new(Broadcasting::new()),
+            bbs_listener_container: std::sync::Mutex::new(BbsListenerContainer::new()),
             logger_controller: LoggerController::new(),
         }
     }
@@ -113,7 +117,16 @@ impl App {
         let app_rtmp_listener_delegate =
             Arc::new(AppRtmpListenerDelegate::new(Arc::downgrade(&zelf)));
         let app_ui_delegate = Arc::new(AppUiDelegate::new(Arc::downgrade(&zelf)));
+        let app_bbs_listener_delegate =
+            Arc::new(AppBbsListenerDelegate::new(Arc::downgrade(&zelf)));
 
+        {
+            let mut bbs_listener_container = zelf.bbs_listener_container.lock().unwrap();
+            let weak = Arc::downgrade(&app_bbs_listener_delegate);
+            bbs_listener_container.set_delegate(weak);
+            bbs_listener_container
+                .set_url(zelf.settings.lock().await.channel_settings.contact_url[0].clone());
+        }
         {
             let app_ui_delegate = app_ui_delegate.clone();
             zelf.logger_controller
