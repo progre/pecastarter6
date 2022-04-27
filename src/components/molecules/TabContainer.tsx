@@ -1,6 +1,6 @@
 import { css } from '@emotion/react';
 import { Pivot, PivotItem } from '@fluentui/react';
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 
 interface TabContentProps {
   label: string;
@@ -24,17 +24,15 @@ export default function TabContainer(props: {
     children = props.children;
   }
 
-  const [current, setCurrent] = useState(
-    props.initialTab ?? children[0].props.label ?? ''
-  );
   return (
     <Pivot
+      defaultSelectedKey={props.initialTab}
       css={css`
         user-select: none;
       `}
     >
       {children?.map((x, i) => (
-        <PivotItem key={i} headerText={x.props.label}>
+        <PivotItem key={i} itemKey={x.props.label} headerText={x.props.label}>
           <div
             css={css`
               margin: 16px 8px 8px;
