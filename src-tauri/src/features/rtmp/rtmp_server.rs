@@ -31,8 +31,7 @@ impl RtmpServer {
         let has_yp = hosts.iter().any(|host| !host.is_empty());
         let agreed_all_terms = hosts
             .into_iter()
-            .map(|host| yp_configs.iter().find(|config| &config.host == host))
-            .flatten()
+            .flat_map(|host| yp_configs.iter().find(|config| &config.host == host))
             .map(|config| &config.terms_url)
             .all(|terms_url| {
                 settings

@@ -242,10 +242,8 @@ where
         return Err(Failure::Error(
             payload_obj_ref
                 .get("error")
-                .map(|x| x.get("message"))
-                .flatten()
-                .map(|x| x.as_str())
-                .flatten()
+                .and_then(|x| x.get("message"))
+                .and_then(|x| x.as_str())
                 .ok_or_else(|| {
                     error!("Result is not json object.");
                     Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())

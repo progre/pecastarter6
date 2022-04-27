@@ -53,7 +53,7 @@ async fn put_line(line: &str, path: &str) -> anyhow::Result<()> {
         .append(true)
         .open(path)
         .await?;
-    file.write(line.as_bytes()).await?;
+    let _size = file.write(line.as_bytes()).await?;
     Ok(())
 }
 
@@ -83,12 +83,10 @@ async fn find_listeners_relays(
 ) -> Result<(Option<(u32, u32)>, Option<(u32, u32)>), Failure> {
     let view_xml = PeCaStAdapter::new(port).view_xml().await?;
     log::trace!("{:?}", view_xml);
-    let ipv4_listeners_relays = ipv4_channel_id
-        .map(|channel_id| view_xml.find_listeners_relays(channel_id))
-        .flatten();
-    let ipv6_listeners_relays = ipv6_channel_id
-        .map(|channel_id| view_xml.find_listeners_relays(channel_id))
-        .flatten();
+    let ipv4_listeners_relays =
+        ipv4_channel_id.and_then(|channel_id| view_xml.find_listeners_relays(channel_id));
+    let ipv6_listeners_relays =
+        ipv6_channel_id.and_then(|channel_id| view_xml.find_listeners_relays(channel_id));
     Ok((ipv4_listeners_relays, ipv6_listeners_relays))
 }
 

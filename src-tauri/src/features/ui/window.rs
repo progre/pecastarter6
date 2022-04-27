@@ -106,7 +106,7 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                     "fetch_hash" => {
                         let payload = message.payload();
                         let url = payload.get("url").unwrap().as_str().unwrap();
-                        let selector = payload.get("selector").map(|x| x.as_str()).flatten();
+                        let selector = payload.get("selector").and_then(|x| x.as_str());
                         resolver.resolve(terms_check::fetch_hash(url, selector).await.unwrap());
                     }
                     "find_free_port" => {
