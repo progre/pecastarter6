@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use log::{error, warn};
@@ -28,6 +28,7 @@ pub trait UiDelegate {
 
 type DynSendSyncUiDelegate = dyn Send + Sync + UiDelegate;
 
+#[derive(Default)]
 pub struct Title {
     pub rtmp: String,
     pub channel_name: String,
@@ -45,25 +46,25 @@ impl ToString for Title {
     }
 }
 
-struct WindowDelegateImpl {
+struct UiWindowDelegate {
     window: Weak<Window>,
-    pub title: Mutex<Title>,
     ui_delegate: Weak<DynSendSyncUiDelegate>,
+    title: Weak<std::sync::Mutex<Title>>,
 }
 
-unsafe impl Send for WindowDelegateImpl {}
-unsafe impl Sync for WindowDelegateImpl {}
+unsafe impl Send for UiWindowDelegate {}
+unsafe impl Sync for UiWindowDelegate {}
 
-impl WindowDelegateImpl {
+impl UiWindowDelegate {
     fn ui_delegate(&self) -> Arc<DynSendSyncUiDelegate> {
         self.ui_delegate.upgrade().unwrap()
     }
 }
 
 #[async_trait]
-impl WindowDelegate for WindowDelegateImpl {
+impl WindowDelegate for UiWindowDelegate {
     fn on_load_page(&self) {
-        let title_status = self.title.lock().unwrap().to_string();
+        let title_status = self.title.upgrade().unwrap().lock().unwrap().to_string();
         self.window
             .upgrade()
             .unwrap()
@@ -75,7 +76,8 @@ impl WindowDelegate for WindowDelegateImpl {
     }
 
     async fn on_change_general_settings(&self, general_settings: GeneralSettings) {
-        self.title.lock().unwrap().channel_name = general_settings.channel_name[0].clone();
+        self.title.upgrade().unwrap().lock().unwrap().channel_name =
+            general_settings.channel_name[0].clone();
 
         self.ui_delegate()
             .on_change_general_settings(general_settings)
@@ -103,7 +105,8 @@ impl WindowDelegate for WindowDelegateImpl {
 
 pub struct Ui {
     window: Arc<Window>,
-    window_delegate_impl: std::sync::Mutex<Option<Arc<WindowDelegateImpl>>>,
+    ui_window_delegate: std::sync::Mutex<Option<Arc<UiWindowDelegate>>>,
+    title: Arc<std::sync::Mutex<Title>>,
 }
 
 unsafe impl Send for Ui {}
@@ -113,7 +116,8 @@ impl Ui {
     pub fn new() -> Self {
         Self {
             window: Arc::new(Window::new()),
-            window_delegate_impl: Default::default(),
+            ui_window_delegate: Default::default(),
+            title: Default::default(),
         }
     }
 
@@ -123,15 +127,16 @@ impl Ui {
         initial_channel_name: String,
         delegate: Weak<DynSendSyncUiDelegate>,
     ) {
-        *self.window_delegate_impl.lock().unwrap() = Some(Arc::new(WindowDelegateImpl {
-            title: Mutex::new(Title {
-                rtmp: initial_rtmp,
-                channel_name: initial_channel_name,
-            }),
+        *self.title.lock().unwrap() = Title {
+            rtmp: initial_rtmp,
+            channel_name: initial_channel_name,
+        };
+        *self.ui_window_delegate.lock().unwrap() = Some(Arc::new(UiWindowDelegate {
             window: Arc::downgrade(&self.window),
             ui_delegate: delegate,
+            title: Arc::downgrade(&self.title),
         }));
-        let weak = Arc::downgrade(self.window_delegate_impl.lock().unwrap().as_ref().unwrap());
+        let weak = Arc::downgrade(self.ui_window_delegate.lock().unwrap().as_ref().unwrap());
         self.window.run(weak);
     }
 
@@ -166,15 +171,13 @@ impl Ui {
     }
 
     pub fn set_rtmp(&self, rtmp: String) {
-        if let Some(window_delegate_impl) = self.window_delegate_impl.lock().unwrap().as_ref() {
-            self.window.set_rtmp(&rtmp);
-            let title_status = {
-                let title = &mut window_delegate_impl.title.lock().unwrap();
-                title.rtmp = rtmp;
-                title.to_string()
-            };
-            self.window.set_title_status(title_status);
-        }
+        self.window.set_rtmp(&rtmp);
+        let title_status = {
+            let title = &mut self.title.lock().unwrap();
+            title.rtmp = rtmp;
+            title.to_string()
+        };
+        self.window.set_title_status(title_status);
     }
 
     fn notify_warn(&self, message: &str) {
