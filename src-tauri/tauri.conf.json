@@ -26,6 +26,7 @@
       },
       "macOS": {
         "frameworks": [],
+        "license": "../LICENSE",
         "minimumSystemVersion": "",
         "exceptionDomain": "",
         "signingIdentity": null,
