@@ -1,7 +1,7 @@
 use std::{mem::take, ops::Deref, sync::Arc};
 
 use log::warn;
-use tokio::{sync::Mutex, task::JoinHandle};
+use tokio::sync::Mutex;
 
 use crate::{
     core::{
@@ -41,18 +41,10 @@ async fn listen_rtmp_if_need(
         .await
 }
 
-async fn run_ui(
-    app: &App,
-    app_ui_delegate: &Arc<AppUiDelegate>,
-    initial_rtmp: String,
-) -> JoinHandle<()> {
+async fn run_ui(app: &App, app_ui_delegate: &Arc<AppUiDelegate>, initial_rtmp: String) {
     let initial_channel_name = app.settings.lock().await.general_settings.channel_name[0].clone();
     let weak = Arc::downgrade(app_ui_delegate);
-    app.ui
-        .lock()
-        .unwrap()
-        .run(initial_rtmp, initial_channel_name, weak)
-        .await
+    app.ui.run(initial_rtmp, initial_channel_name, weak);
 }
 
 fn updated_value_with_history(history: Vec<String>, limit: usize) -> Vec<String> {
@@ -92,7 +84,7 @@ fn updated_channel_content_history(
 pub struct App {
     pub yp_configs: Vec<YPConfig>,
     pub settings: Mutex<Settings>,
-    pub ui: std::sync::Mutex<Ui>,
+    pub ui: Ui,
     pub rtmp_server: Mutex<RtmpServer>,
     pub broadcasting: Mutex<Broadcasting>,
     pub bbs_listener_container: std::sync::Mutex<BbsListenerContainer>,
@@ -104,7 +96,7 @@ impl App {
         Self {
             yp_configs: read_yp_configs_and_show_dialog_if_error().await,
             settings: Mutex::new(load_settings_and_show_dialog_if_error().await),
-            ui: std::sync::Mutex::new(Ui::new()),
+            ui: Ui::new(),
             rtmp_server: Mutex::new(RtmpServer::new()),
             broadcasting: Mutex::new(Broadcasting::new()),
             bbs_listener_container: std::sync::Mutex::new(BbsListenerContainer::new()),
@@ -141,10 +133,7 @@ impl App {
             "idle"
         };
 
-        run_ui(&zelf, &app_ui_delegate, initial_rtmp.to_owned())
-            .await
-            .await // long long awaiting
-            .unwrap();
+        run_ui(&zelf, &app_ui_delegate, initial_rtmp.to_owned()).await; // long long awaiting
     }
 
     pub async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
@@ -153,13 +142,13 @@ impl App {
             Ok(true) => true,
             Ok(false) => {
                 save_settings_and_show_dialog_if_error(&settings).await;
-                self.ui.lock().unwrap().reset_yp_terms(&settings);
+                self.ui.reset_yp_terms(&settings);
                 false
             }
             Err(e) => {
                 warn!("{}", e);
                 let warn = Failure::Warn("YP の利用規約の確認に失敗しました。".to_owned());
-                self.ui.lock().unwrap().notify_failure(&warn);
+                self.ui.notify_failure(&warn);
 
                 true
             }
@@ -176,14 +165,14 @@ impl App {
             .await
         {
             Err(err) => {
-                let ui = self.ui.lock().unwrap();
+                let ui = &self.ui;
                 ui.notify_failure(&Failure::Error(err.to_string()));
                 ui.set_rtmp("idle".to_owned());
                 false
             }
             Ok(listening) => {
                 let status = if listening { "listening" } else { "idle" };
-                self.ui.lock().unwrap().set_rtmp(status.to_owned());
+                self.ui.set_rtmp(status.to_owned());
                 listening
             }
         }
@@ -192,11 +181,11 @@ impl App {
     pub async fn update_channel(&self, broadcasting: &Broadcasting, settings: &Settings) {
         let res = broadcasting.update(&self.yp_configs, settings).await;
         if let Some(err) = res.err() {
-            self.ui.lock().unwrap().notify_failure(&err);
+            self.ui.notify_failure(&err);
         }
     }
 
-    pub fn update_histories(&self, settings: &mut Settings, ui: &std::sync::Mutex<Ui>) {
+    pub fn update_histories(&self, settings: &mut Settings, ui: &Ui) {
         settings.general_settings.channel_name =
             updated_value_with_history(take(&mut settings.general_settings.channel_name), 5);
         settings.channel_settings.channel_content_history = updated_channel_content_history(
@@ -209,6 +198,6 @@ impl App {
             updated_value_with_history(take(&mut settings.channel_settings.comment), 20);
         settings.channel_settings.contact_url =
             updated_value_with_history(take(&mut settings.channel_settings.contact_url), 5);
-        ui.lock().unwrap().push_settings(settings);
+        ui.push_settings(settings);
     }
 }

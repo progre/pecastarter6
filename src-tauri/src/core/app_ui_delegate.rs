@@ -32,7 +32,7 @@ impl AppUiDelegate {
     }
 
     pub fn on_error_log_controller(&self, failure: &Failure) {
-        self.app().ui.lock().unwrap().notify_failure(failure);
+        self.app().ui.notify_failure(failure);
     }
 }
 
@@ -107,7 +107,7 @@ impl UiDelegate for AppUiDelegate {
             .await
         {
             let failure = Failure::Warn(err.to_string());
-            app.ui.lock().unwrap().notify_failure(&failure);
+            app.ui.notify_failure(&failure);
         }
     }
 
@@ -134,7 +134,7 @@ impl UiDelegate for AppUiDelegate {
             .await
         {
             let failure = Failure::Warn(err.to_string());
-            self.app().ui.lock().unwrap().notify_failure(&failure);
+            self.app().ui.notify_failure(&failure);
         }
     }
 }

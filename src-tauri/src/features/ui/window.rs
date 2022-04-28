@@ -9,7 +9,6 @@ use serde_json::{json, Value};
 use tauri::{
     generate_context, AppHandle, Invoke, InvokeMessage, Manager, PageLoadPayload, UserAttentionType,
 };
-use tokio::task::JoinHandle;
 
 use crate::{
     core::{
@@ -126,7 +125,6 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
             let delegate = (window.state() as tauri::State<'_, WindowState>).delegate();
             delegate.on_load_page();
         })
-        .any_thread()
         .build(generate_context!())
         .map_err(|err| {
             let mut note = "";
@@ -146,27 +144,20 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
 }
 
 pub struct Window {
-    app_handle: Option<AppHandle>,
+    app_handle: std::sync::Mutex<Option<AppHandle>>,
 }
 
 impl Window {
     pub fn new() -> Self {
-        Self { app_handle: None }
+        Self {
+            app_handle: Default::default(),
+        }
     }
 
-    pub async fn run(&mut self, delegate: Weak<DynSendSyncWindowDelegate>) -> JoinHandle<()> {
-        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
-        let (stop_tx, stop_rx) = tokio::sync::oneshot::channel();
-        std::thread::spawn(move || {
-            let app = build_app(delegate);
-            start_tx.send(app.app_handle()).unwrap();
-            app.run(|_, _| {});
-            stop_tx.send(()).unwrap();
-        });
-        self.app_handle = Some(start_rx.await.unwrap());
-        tokio::spawn(async {
-            stop_rx.await.unwrap();
-        })
+    pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) {
+        let app = build_app(delegate);
+        *self.app_handle.lock().unwrap() = Some(app.app_handle());
+        app.run(|_, _| {});
     }
 
     pub fn push_settings(&self, settings: &Settings) {
@@ -187,7 +178,7 @@ impl Window {
             _ => None,
         };
         if let Some(attention) = attention {
-            if let Some(app_handle) = &self.app_handle {
+            if let Some(app_handle) = self.app_handle.lock().unwrap().as_ref() {
                 app_handle
                     .get_window("main")
                     .unwrap()
@@ -209,7 +200,7 @@ impl Window {
     }
 
     pub fn set_title_status(&self, title_status: String) {
-        if let Some(app_handle) = &self.app_handle {
+        if let Some(app_handle) = self.app_handle.lock().unwrap().as_ref() {
             app_handle
                 .get_window("main")
                 .unwrap()
@@ -223,7 +214,7 @@ impl Window {
     }
 
     fn send(&self, event: &str, payload: Value) {
-        if let Some(app_handle) = &self.app_handle {
+        if let Some(app_handle) = self.app_handle.lock().unwrap().as_ref() {
             app_handle.emit_all(event, payload).unwrap();
         }
     }

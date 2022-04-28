@@ -20,8 +20,6 @@ impl BbsListenerDelegate for AppBbsListenerDelegate {
     fn on_update_contact_status(&self, contact_status: &ContactStatus) {
         self.app()
             .ui
-            .lock()
-            .unwrap()
             .push_contact_status(contact_status);
     }
 

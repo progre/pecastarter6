@@ -1,9 +1,8 @@
-use std::sync::{Arc, Mutex, MutexGuard, Weak};
+use std::sync::{Arc, Mutex, Weak};
 
 use async_trait::async_trait;
 use log::{error, warn};
 use tauri::api::dialog;
-use tokio::task::JoinHandle;
 
 use crate::core::{
     entities::{
@@ -47,7 +46,7 @@ impl ToString for Title {
 }
 
 struct WindowDelegateImpl {
-    window: Mutex<Window>,
+    window: Weak<Window>,
     pub title: Mutex<Title>,
     ui_delegate: Weak<DynSendSyncUiDelegate>,
 }
@@ -65,7 +64,10 @@ impl WindowDelegateImpl {
 impl WindowDelegate for WindowDelegateImpl {
     fn on_load_page(&self) {
         let title_status = self.title.lock().unwrap().to_string();
-        self.window.lock().unwrap().set_title_status(title_status);
+        self.window
+            .upgrade()
+            .unwrap()
+            .set_title_status(title_status);
     }
 
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings, ContactStatus) {
@@ -100,7 +102,8 @@ impl WindowDelegate for WindowDelegateImpl {
 }
 
 pub struct Ui {
-    window_delegate_impl: Option<Arc<WindowDelegateImpl>>,
+    window: Arc<Window>,
+    window_delegate_impl: std::sync::Mutex<Option<Arc<WindowDelegateImpl>>>,
 }
 
 unsafe impl Send for Ui {}
@@ -109,32 +112,27 @@ unsafe impl Sync for Ui {}
 impl Ui {
     pub fn new() -> Self {
         Self {
-            window_delegate_impl: None,
+            window: Arc::new(Window::new()),
+            window_delegate_impl: Default::default(),
         }
     }
 
-    fn lock_window(&self) -> Option<MutexGuard<Window>> {
-        self.window_delegate_impl
-            .as_ref()
-            .map(|x| x.window.lock().unwrap())
-    }
-
-    pub async fn run(
-        &mut self,
+    pub fn run(
+        &self,
         initial_rtmp: String,
         initial_channel_name: String,
         delegate: Weak<DynSendSyncUiDelegate>,
-    ) -> JoinHandle<()> {
-        self.window_delegate_impl = Some(Arc::new(WindowDelegateImpl {
+    ) {
+        *self.window_delegate_impl.lock().unwrap() = Some(Arc::new(WindowDelegateImpl {
             title: Mutex::new(Title {
                 rtmp: initial_rtmp,
                 channel_name: initial_channel_name,
             }),
-            window: Mutex::new(Window::new()),
+            window: Arc::downgrade(&self.window),
             ui_delegate: delegate,
         }));
-        let weak = Arc::downgrade(self.window_delegate_impl.as_ref().unwrap());
-        self.lock_window().unwrap().run(weak).await
+        let weak = Arc::downgrade(self.window_delegate_impl.lock().unwrap().as_ref().unwrap());
+        self.window.run(weak);
     }
 
     pub fn notify_failure(&self, failure: &Failure) {
@@ -155,47 +153,36 @@ impl Ui {
     }
 
     pub fn push_settings(&self, settings: &Settings) {
-        if let Some(x) = self.lock_window() {
-            x.push_settings(settings);
-        }
+        self.window.push_settings(settings);
     }
 
     pub fn push_contact_status(&self, contact_status: &ContactStatus) {
-        if let Some(x) = self.lock_window() {
-            x.push_contact_status(contact_status);
-        }
+        self.window.push_contact_status(contact_status);
     }
 
     pub fn reset_yp_terms(&self, settings: &Settings) {
-        if let Some(x) = self.lock_window() {
-            x.push_settings(settings);
-        }
+        self.window.push_settings(settings);
         self.notify_error("YP の利用規約が変更されました。再度確認してください。");
     }
 
     pub fn set_rtmp(&self, rtmp: String) {
-        if let Some(window_delegate_impl) = &self.window_delegate_impl {
-            let window = window_delegate_impl.window.lock().unwrap();
-            window.set_rtmp(&rtmp);
+        if let Some(window_delegate_impl) = self.window_delegate_impl.lock().unwrap().as_ref() {
+            self.window.set_rtmp(&rtmp);
             let title_status = {
                 let title = &mut window_delegate_impl.title.lock().unwrap();
                 title.rtmp = rtmp;
                 title.to_string()
             };
-            window.set_title_status(title_status);
+            self.window.set_title_status(title_status);
         }
     }
 
     fn notify_warn(&self, message: &str) {
-        if let Some(x) = self.lock_window() {
-            x.notify("warn", message)
-        }
+        self.window.notify("warn", message)
     }
 
     fn notify_error(&self, message: &str) {
-        if let Some(x) = self.lock_window() {
-            x.notify("error", message)
-        }
+        self.window.notify("error", message)
     }
 
     fn notify_fatal(&self, message: &str) {

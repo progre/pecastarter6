@@ -84,7 +84,7 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
         let rtmp_conn_port = match result {
             Ok(ok) => ok,
             Err(err) => {
-                app.ui.lock().unwrap().notify_failure(&err);
+                app.ui.notify_failure(&err);
                 return;
             }
         };
@@ -95,7 +95,7 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
             save_settings_and_show_dialog_if_error(&settings).await;
         }
 
-        app.ui.lock().unwrap().set_rtmp("streaming".to_owned());
+        app.ui.set_rtmp("streaming".to_owned());
 
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
@@ -105,7 +105,7 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
         //       https://github.com/kumaryu/peercaststation/issues/490
         sleep(Duration::from_secs(6)).await;
 
-        app.ui.lock().unwrap().set_rtmp("listening".to_owned());
+        app.ui.set_rtmp("listening".to_owned());
 
         let result = {
             let settings = app.settings.lock().await;
@@ -114,7 +114,7 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
         match result {
             Ok(_) => {}
             Err(err) => {
-                app.ui.lock().unwrap().notify_failure(&err);
+                app.ui.notify_failure(&err);
                 return;
             }
         };
