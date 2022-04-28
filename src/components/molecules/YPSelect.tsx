@@ -14,6 +14,7 @@ export default function YPSelect(props: {
     <Dropdown
       css={css`
         display: flex;
+        align-items: center;
         > div {
           margin-left: 8px;
           flex-grow: 1;

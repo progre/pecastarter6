@@ -6,6 +6,7 @@ import YPConfig from './entities/YPConfig';
 import initFluentUI from './utils/initFluentUI';
 import App from './App';
 
+import 'modern-normalize';
 import './index.css';
 
 initFluentUI();

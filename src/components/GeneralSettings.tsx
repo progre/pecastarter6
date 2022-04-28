@@ -82,7 +82,8 @@ function PeerCastRtmpTcpPort(props: {
     >
       <SpinButton
         label="RTMP TCP ポート番号 (0 で自動)"
-        style={{ width: '0' }}
+        style={{ width: 0 }}
+        styles={{ input: { textAlign: 'end', textOverflow: 'clip' } }}
         css={css`
           z-index: 1;
           width: auto;
@@ -167,7 +168,7 @@ export default function GeneralSettings(props: {
           margin-top: 24px;
         `}
         style={{ width: 0 }}
-        styles={{ input: { textAlign: 'end' } }}
+        styles={{ input: { textAlign: 'end', textOverflow: 'clip' } }}
         max={65535}
         min={1}
         value={String(props.settings.rtmpListenPort)}
@@ -186,8 +187,8 @@ export default function GeneralSettings(props: {
       <Text variant="large">PeerCastStation</Text>
       <SpinButton
         label="データ通信 TCP ポート番号"
-        style={{ width: '0' }}
-        styles={{ input: { textAlign: 'end' } }}
+        style={{ width: 0 }}
+        styles={{ input: { textAlign: 'end', textOverflow: 'clip' } }}
         max={65535}
         min={1}
         value={String(props.settings.peerCastPort)}

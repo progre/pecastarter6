@@ -79,7 +79,7 @@ function ChannelContentView(props: {
         css={css`
           width: 100%;
           position: absolute;
-          margin-top: 31.5px;
+          margin-top: 26px;
         `}
       >
         <History
@@ -171,6 +171,9 @@ export default function ChannelSettings(props: {
       <div
         css={css`
           margin-top: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         `}
       >
         <HistoryTextField
@@ -186,41 +189,43 @@ export default function ChannelSettings(props: {
             })
           }
         />
-        <HistoryTextField
-          label="コンタクト URL"
-          placeholder="https://"
-          value={props.settings.contactUrl[0]}
-          history={props.settings.contactUrl
-            .slice(1)
-            .filter((x) => x.trim() !== '')}
-          onChange={(value) =>
-            props.onChange({
-              ...props.settings,
-              contactUrl: [value, ...props.settings.contactUrl.slice(1)],
-            })
-          }
-        />
-        <div
-          css={css`
-            width: 100%;
-            display: ${props.contactStatus.title === '' ? 'none' : 'flex'};
-            margin-top: 1ex;
-          `}
-        >
-          <Text nowrap variant="small">
-            <a target="_blank" href={props.settings.contactUrl[0]}>
-              {props.contactStatus.title}
-            </a>
-          </Text>
-          <Text
+        <div>
+          <HistoryTextField
+            label="コンタクト URL"
+            placeholder="https://"
+            value={props.settings.contactUrl[0]}
+            history={props.settings.contactUrl
+              .slice(1)
+              .filter((x) => x.trim() !== '')}
+            onChange={(value) =>
+              props.onChange({
+                ...props.settings,
+                contactUrl: [value, ...props.settings.contactUrl.slice(1)],
+              })
+            }
+          />
+          <div
             css={css`
-              margin-left: 0.25em;
-              ${props.contactStatus.resCount === 0 ? 'display: none' : ''}
+              width: 100%;
+              display: ${props.contactStatus.title === '' ? 'none' : 'flex'};
+              margin-top: 1ex;
             `}
-            variant="small"
           >
-            ({props.contactStatus.resCount})
-          </Text>
+            <Text nowrap variant="small">
+              <a target="_blank" href={props.settings.contactUrl[0]}>
+                {props.contactStatus.title}
+              </a>
+            </Text>
+            <Text
+              css={css`
+                margin-left: 0.25em;
+                ${props.contactStatus.resCount === 0 ? 'display: none' : ''}
+              `}
+              variant="small"
+            >
+              ({props.contactStatus.resCount})
+            </Text>
+          </div>
         </div>
       </div>
     </div>
