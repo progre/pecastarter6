@@ -112,7 +112,12 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                         resolver.resolve(find_free_port().await.unwrap());
                     }
                     "open_app_dir" => {
-                        Command::new("explorer.exe")
+                        let cmd = if cfg!(target_os = "macos") {
+                            "open"
+                        } else {
+                            "explorer.exe"
+                        };
+                        Command::new(cmd)
                             .arg(APP_DIR.to_str().unwrap())
                             .output()
                             .unwrap();

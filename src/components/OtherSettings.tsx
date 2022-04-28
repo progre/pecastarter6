@@ -1,16 +1,32 @@
 import { css } from '@emotion/react';
 import { Checkbox, DefaultButton, TextField } from '@fluentui/react';
-import { dialog, invoke, shell } from '@tauri-apps/api';
+import { dialog, invoke } from '@tauri-apps/api';
 import { useState } from 'react';
+import { LiteralUnion } from 'type-fest';
 import { OtherSettings as Settings } from '../entities/Settings';
 
 export default function OtherSettings(props: {
+  // WTF: mac だとディレクトリ選択ダイアログが正常に動作しない
+  platform: LiteralUnion<
+    | 'linux'
+    | 'darwin'
+    | 'ios'
+    | 'freebsd'
+    | 'dragonfly'
+    | 'netbsd'
+    | 'openbsd'
+    | 'solaris'
+    | 'android'
+    | 'win32',
+    string
+  >;
   settings: Settings;
   onChange(value: Settings): void;
 }) {
   const [logOutputDirectory, setLogOutputDirectory] = useState(
     props.settings.logOutputDirectory
   );
+  const hideOpenDirectoryDialog = props.platform === 'darwin';
 
   return (
     <div
@@ -38,11 +54,13 @@ export default function OtherSettings(props: {
             flex-grow: 1;
           `}
           styles={{
-            fieldGroup: {
-              borderRight: 'none',
-              borderTopRightRadius: 0,
-              borderBottomRightRadius: 0,
-            },
+            fieldGroup: hideOpenDirectoryDialog
+              ? {}
+              : {
+                  borderRight: 'none',
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                },
           }}
           label="ログの出力先"
           disabled={!props.settings.logEnabled}
@@ -60,6 +78,7 @@ export default function OtherSettings(props: {
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
             min-width: 0;
+            ${hideOpenDirectoryDialog ? 'display: none;' : ''}
           `}
           iconProps={{ iconName: 'folderopen' }}
           disabled={!props.settings.logEnabled}

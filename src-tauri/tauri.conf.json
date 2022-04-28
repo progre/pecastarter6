@@ -53,6 +53,9 @@
       "notification": {
         "all": true
       },
+      "os": {
+        "all": true
+      },
       "shell": {
         "open": true
       },
