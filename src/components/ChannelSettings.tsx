@@ -13,6 +13,7 @@ import {
   ChannelSettings as Settings,
 } from '../entities/Settings';
 import HistoryTextField from './molecules/HistoryTextField';
+import ShowMore from './molecules/ShowMore';
 
 function History(props: {
   currentGenre: string;
@@ -22,6 +23,8 @@ function History(props: {
 }): JSX.Element {
   const componentRef = useRef<IDropdown>(null);
   const [isOpen, setOpen] = useState(false);
+  const limit = 5;
+  const [extended, setExtended] = useState(false);
   return (
     <div
       css={css`
@@ -38,12 +41,24 @@ function History(props: {
           pointer-events: none;
         `}
         responsiveMode={ResponsiveMode.large}
-        options={props.history.map((x, _i) => ({
-          key: `${x.genre} - ${x.desc}`,
-          data: x,
-          text: `${x.genre} - ${x.desc}`,
-        }))}
+        onRenderList={(renderProps, defaultRender) => (
+          <>
+            {defaultRender!!(renderProps)}
+            <ShowMore
+              hidden={props.history.length < limit || extended}
+              onClick={() => setExtended(true)}
+            />
+          </>
+        )}
+        options={props.history
+          .slice(0, extended ? props.history.length : limit)
+          .map((x, _i) => ({
+            key: `${x.genre} - ${x.desc}`,
+            data: x,
+            text: `${x.genre} - ${x.desc}`,
+          }))}
         selectedKey={`${props.currentGenre} - ${props.currentDesc}`}
+        onDismiss={() => setExtended(false)}
         onChange={(_e, option, _i) => props.onChange(option!!.data!!)}
       />
       <DefaultButton

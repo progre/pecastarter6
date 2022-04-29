@@ -1,6 +1,7 @@
 import { css } from '@emotion/react';
 import { ComboBox } from '@fluentui/react';
 import { useRef, useState } from 'react';
+import ShowMore from './ShowMore';
 
 export default function HistoryTextField(props: {
   label: string;
@@ -12,6 +13,8 @@ export default function HistoryTextField(props: {
 }) {
   const [value, setValue] = useState(props.value);
   const ref = useRef<HTMLInputElement>(null);
+  const [extended, setExtended] = useState(false);
+  const limit = 5;
   return (
     <ComboBox
       ref={ref}
@@ -19,7 +22,10 @@ export default function HistoryTextField(props: {
       required={props.required}
       allowFreeform
       placeholder={props.placeholder}
-      options={[...props.history].reverse().map((x) => ({ key: x, text: x }))}
+      options={props.history
+        .slice(0, extended ? props.history.length : limit)
+        .reverse()
+        .map((x) => ({ key: x, text: x }))}
       styles={{
         optionsContainer: {
           display: 'flex',
@@ -28,9 +34,13 @@ export default function HistoryTextField(props: {
       }}
       selectedKey={null}
       text={value}
-      onRenderList={(props, defaultRender) => (
+      onRenderList={(renderProps, defaultRender) => (
         <div style={{ width: ref.current!!.clientWidth - 30 - 2 }}>
-          {defaultRender!!(props)}
+          {defaultRender!!(renderProps)}
+          <ShowMore
+            hidden={props.history.length < limit || extended}
+            onClick={() => setExtended(true)}
+          />
         </div>
       )}
       onRenderItem={(props, defaultRender) => (
@@ -52,6 +62,7 @@ export default function HistoryTextField(props: {
       )}
       onItemClick={(_e, option, _i) => setValue(option!!.text)}
       onInputValueChange={(value) => setValue(value)}
+      onMenuDismissed={() => setExtended(false)}
       onBlurCapture={() => {
         if (value === props.value) {
           return;
