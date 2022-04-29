@@ -17,7 +17,9 @@ function EachYellowPagesSettingsView(props: {
   ypConfigs: readonly YPConfig[];
   usedHostForIPV4?: string;
   agreedTerms: { [url: string]: string };
+  readedTerms: { [url: string]: string };
   value: EachYellowPagesSettings;
+  onReadTerms: (termsURL: string, hash: string) => void;
   onChange(value: EachYellowPagesSettings): void;
   onChangeAgreeTerms(url: string, hash: string | null): void;
 }): JSX.Element {
@@ -26,9 +28,8 @@ function EachYellowPagesSettingsView(props: {
   );
   const conflict =
     currentYPConfig != null && currentYPConfig.host === props.usedHostForIPV4;
-  const [readedTerms, setReadedTerms] = useState<string | null>(
-    props.agreedTerms[currentYPConfig?.termsURL ?? ''] ?? null
-  );
+  const readedTerms: string | null =
+    props.readedTerms[currentYPConfig?.termsURL ?? ''] ?? null;
   return (
     <div
       css={css`
@@ -52,7 +53,6 @@ function EachYellowPagesSettingsView(props: {
           conflict={conflict}
           host={props.value.host}
           onChange={(host) => {
-            setReadedTerms(null);
             props.onChange({ ...props.value, host });
           }}
         />
@@ -69,7 +69,7 @@ function EachYellowPagesSettingsView(props: {
             url: termsURL,
             selector: currentYPConfig?.termsSelector,
           });
-          setReadedTerms(termsHash);
+          props.onReadTerms(termsURL, termsHash);
         }}
         onChangeAgreeTerms={(value) =>
           props.onChangeAgreeTerms(
@@ -109,6 +109,8 @@ function EachYellowPagesSettingsView(props: {
 export default function YellowPagesSettings(props: {
   ypConfigs: readonly YPConfig[];
   settings: Settings;
+  readedTerms: { [url: string]: string };
+  onReadTerms: (termsURL: string, url: string) => void;
   onChange(value: Settings): void;
 }) {
   const update = (newSettings: Partial<Settings>) => {
@@ -123,37 +125,37 @@ export default function YellowPagesSettings(props: {
         flex-wrap: wrap;
       `}
     >
-      <EachYellowPagesSettingsView
-        protocol="IPv4"
-        ypConfigs={props.ypConfigs}
-        agreedTerms={props.settings.agreedTerms}
-        value={props.settings.ipv4}
-        onChange={(ipv4) => update({ ipv4 })}
-        onChangeAgreeTerms={(url, hash) =>
-          update({
-            agreedTerms: {
-              ...props.settings.agreedTerms,
-              [url]: hash ?? undefined!!,
-            },
-          })
-        }
-      />
-      <EachYellowPagesSettingsView
-        protocol="IPv6"
-        ypConfigs={props.ypConfigs.filter((x) => x.supportIpv6)}
-        usedHostForIPV4={props.settings.ipv4.host}
-        agreedTerms={props.settings.agreedTerms}
-        value={props.settings.ipv6}
-        onChange={(ipv6) => update({ ipv6 })}
-        onChangeAgreeTerms={(url, hash) =>
-          update({
-            agreedTerms: {
-              ...props.settings.agreedTerms,
-              [url]: hash ?? undefined!!,
-            },
-          })
-        }
-      />
+      {[
+        {
+          protocol: 'IPv4' as 'IPv4' | 'IPv6',
+          value: props.settings.ipv4,
+          onChange: (ipv4: EachYellowPagesSettings) => update({ ipv4 }),
+        },
+        {
+          protocol: 'IPv6' as 'IPv4' | 'IPv6',
+          value: props.settings.ipv6,
+          onChange: (ipv6: EachYellowPagesSettings) => update({ ipv6 }),
+        },
+      ].map(({ protocol, value, onChange }) => (
+        <EachYellowPagesSettingsView
+          key={protocol}
+          protocol={protocol}
+          value={value}
+          onChange={onChange}
+          ypConfigs={props.ypConfigs}
+          agreedTerms={props.settings.agreedTerms}
+          readedTerms={props.readedTerms}
+          onReadTerms={props.onReadTerms}
+          onChangeAgreeTerms={(url, hash) =>
+            update({
+              agreedTerms: {
+                ...props.settings.agreedTerms,
+                [url]: hash ?? undefined!!,
+              },
+            })
+          }
+        />
+      ))}
     </div>
   );
 }

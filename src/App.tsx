@@ -119,6 +119,10 @@ export default function App(props: {
     };
   }, []);
 
+  const [readedTerms, setReadedTerms] = useState<{ [key: string]: string }>(
+    props.defaultSettings.yellowPagesSettings.agreedTerms
+  );
+
   return (
     <>
       <TabContainer
@@ -137,6 +141,10 @@ export default function App(props: {
           <YellowPagesSettings
             ypConfigs={props.ypConfigs}
             settings={settings.yellowPagesSettings}
+            readedTerms={readedTerms}
+            onReadTerms={(termsURL, hash) => {
+              setReadedTerms({ ...readedTerms, [termsURL]: hash });
+            }}
             onChange={(yellowPagesSettings) => {
               invoke('put_settings', { yellowPagesSettings });
               setSettings((settings) => ({ ...settings, yellowPagesSettings }));
