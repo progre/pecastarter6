@@ -63,7 +63,7 @@ impl UiWindowDelegate {
 
 #[async_trait]
 impl WindowDelegate for UiWindowDelegate {
-    fn on_load_page(&self) {
+    fn on_build_app(&self) {
         let title_status = self.title.upgrade().unwrap().lock().unwrap().to_string();
         self.window
             .upgrade()

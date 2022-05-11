@@ -39,7 +39,7 @@ use crate::{
 
 #[async_trait]
 pub trait WindowDelegate {
-    fn on_load_page(&self);
+    fn on_build_app(&self);
     async fn initial_data(&self) -> (Vec<YPConfig>, Settings, ContactStatus);
     async fn on_change_general_settings(&self, general_settings: GeneralSettings);
     async fn on_change_yellow_pages_settings(&self, yellow_pages_settings: YellowPagesSettings);
@@ -126,10 +126,6 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                 }
             });
         })
-        .on_page_load(|window: tauri::Window, _: PageLoadPayload| {
-            let delegate = (window.state() as tauri::State<'_, WindowState>).delegate();
-            delegate.on_load_page();
-        })
         .build(generate_context!())
         .map_err(|err| {
             let mut note = "";
@@ -160,8 +156,11 @@ impl Window {
     }
 
     pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) {
-        let app = build_app(delegate);
+        let app = build_app(delegate.clone());
         *self.app_handle.lock().unwrap() = Some(app.app_handle());
+        if let Some(delegate) = delegate.upgrade() {
+            delegate.on_build_app()
+        }
         app.run(|_, _| {});
     }
 
