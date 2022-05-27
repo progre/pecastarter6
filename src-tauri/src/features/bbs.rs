@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use encoding_rs::{Encoding, UTF_8};
 use getset::Getters;
 use regex::Regex;
 use tokio::{spawn, task::JoinHandle, time::interval};
@@ -17,11 +18,20 @@ pub trait BbsListenerDelegate {
 
 async fn fetch_html_title(url: &str) -> Option<String> {
     let res = reqwest::get(url).await.ok()?;
-    let html = res.text().await.unwrap();
+    let bytes = res.bytes().await.unwrap();
+    let utf8 = String::from_utf8_lossy(&bytes).to_lowercase();
+    let regex = r#"<meta charset="(.?*)">|<meta http-equiv="content-type" content="text/html; charset=(.?*)"(:? /)?>"#;
+    let encoding = Regex::new(regex)
+        .unwrap()
+        .captures(utf8.as_ref())
+        .and_then(|x| x.get(1).or_else(|| x.get(2)))
+        .and_then(|x| Encoding::for_label(x.as_str().as_bytes()))
+        .unwrap_or(UTF_8);
+    let html = encoding.decode(&bytes).0;
     Some(
         Regex::new(r"<title>(.+?)</title>")
             .unwrap()
-            .captures(&html)?[1]
+            .captures(html.as_ref())?[1]
             .to_owned(),
     )
 }

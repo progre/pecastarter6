@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use tauri::{
-    generate_context, AppHandle, Invoke, InvokeMessage, Manager, PageLoadPayload, UserAttentionType,
+    generate_context, AppHandle, Invoke, InvokeMessage, Manager, UserAttentionType,
 };
 
 use crate::{
