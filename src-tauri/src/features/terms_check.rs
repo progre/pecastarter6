@@ -27,9 +27,9 @@ pub async fn fetch_hash(url: &str, selector: Option<&str>) -> anyhow::Result<Str
     Ok(hash)
 }
 
-async fn expired_yp_terms<'a>(
+async fn expired_yp_terms<'a, 'b>(
     yp_configs: &'a [YPConfig],
-    settings: &Settings,
+    settings: &'b Settings,
 ) -> anyhow::Result<Vec<&'a str>> {
     let hosts = [
         &settings.yellow_pages_settings.ipv4.host,

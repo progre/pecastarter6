@@ -1,5 +1,6 @@
 use std::{
     num::NonZeroU16,
+    path::PathBuf,
     sync::{Arc, Weak},
     time::Duration,
 };
@@ -23,15 +24,18 @@ use crate::{
 
 use super::app::App;
 
-pub struct AppRtmpListenerDelegate(Weak<App>);
+pub struct AppRtmpListenerDelegate {
+    app: Weak<App>,
+    app_dir: PathBuf,
+}
 
 impl AppRtmpListenerDelegate {
-    pub fn new(app: Weak<App>) -> Self {
-        Self(app)
+    pub fn new(app: Weak<App>, app_dir: PathBuf) -> Self {
+        Self { app, app_dir }
     }
 
     fn app(&self) -> Arc<App> {
-        self.0.upgrade().unwrap()
+        self.app.upgrade().unwrap()
     }
 }
 
@@ -72,7 +76,10 @@ async fn stop_channel(
 impl RtmpListenerDelegate for AppRtmpListenerDelegate {
     async fn on_connect(&self, incoming: TcpStream) {
         let app = self.app();
-        if !app.show_check_again_terms_dialog_if_expired().await {
+        if !app
+            .show_check_again_terms_dialog_if_expired(&self.app_dir)
+            .await
+        {
             return;
         }
 
@@ -92,7 +99,7 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
         {
             let mut settings = app.settings.lock().await;
             app.update_histories(&mut settings, &app.ui);
-            save_settings_and_show_dialog_if_error(&settings).await;
+            save_settings_and_show_dialog_if_error(&self.app_dir, &settings).await;
         }
 
         app.ui.set_rtmp("streaming".to_owned());

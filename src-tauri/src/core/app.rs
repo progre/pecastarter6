@@ -1,6 +1,12 @@
-use std::{mem::take, ops::Deref, sync::Arc};
+use std::{
+    mem::take,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use log::warn;
+use tauri::{api::path::app_dir, generate_context, utils::assets::EmbeddedAssets, Context};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -41,10 +47,17 @@ async fn listen_rtmp_if_need(
         .await
 }
 
-async fn run_ui(app: &App, app_ui_delegate: &Arc<AppUiDelegate>, initial_rtmp: String) {
+async fn run_ui(
+    context: Context<EmbeddedAssets>,
+    app_dir: PathBuf,
+    app: &App,
+    app_ui_delegate: &Arc<AppUiDelegate>,
+    initial_rtmp: String,
+) {
     let initial_channel_name = app.settings.lock().await.general_settings.channel_name[0].clone();
     let weak = Arc::downgrade(app_ui_delegate);
-    app.ui.run(initial_rtmp, initial_channel_name, weak);
+    app.ui
+        .run(context, app_dir, initial_rtmp, initial_channel_name, weak);
 }
 
 fn updated_value_with_history(history: Vec<String>, limit: usize) -> Vec<String> {
@@ -92,10 +105,10 @@ pub struct App {
 }
 
 impl App {
-    async fn new() -> Self {
+    async fn new(app_dir: &Path) -> Self {
         Self {
-            yp_configs: read_yp_configs_and_show_dialog_if_error().await,
-            settings: Mutex::new(load_settings_and_show_dialog_if_error().await),
+            yp_configs: read_yp_configs_and_show_dialog_if_error(app_dir).await,
+            settings: Mutex::new(load_settings_and_show_dialog_if_error(app_dir).await),
             ui: Ui::new(),
             rtmp_server: Mutex::new(RtmpServer::new()),
             broadcasting: Mutex::new(Broadcasting::new()),
@@ -105,19 +118,25 @@ impl App {
     }
 
     pub async fn run() {
-        let zelf = Arc::new(Self::new().await);
-        let app_rtmp_listener_delegate =
-            Arc::new(AppRtmpListenerDelegate::new(Arc::downgrade(&zelf)));
-        let app_ui_delegate = Arc::new(AppUiDelegate::new(Arc::downgrade(&zelf)));
+        let context = generate_context!();
+
+        let app_dir = app_dir(context.config()).unwrap();
+
+        let zelf = Arc::new(Self::new(&app_dir).await);
+        let app_rtmp_listener_delegate = Arc::new(AppRtmpListenerDelegate::new(
+            Arc::downgrade(&zelf),
+            app_dir.clone(),
+        ));
+        let app_ui_delegate = Arc::new(AppUiDelegate::new(Arc::downgrade(&zelf), app_dir.clone()));
         let app_bbs_listener_delegate =
             Arc::new(AppBbsListenerDelegate::new(Arc::downgrade(&zelf)));
 
         {
+            let url = zelf.settings.lock().await.channel_settings.contact_url[0].clone();
             let mut bbs_listener_container = zelf.bbs_listener_container.lock().unwrap();
             let weak = Arc::downgrade(&app_bbs_listener_delegate);
             bbs_listener_container.set_delegate(weak);
-            bbs_listener_container
-                .set_url(zelf.settings.lock().await.channel_settings.contact_url[0].clone());
+            bbs_listener_container.set_url(url);
         }
         {
             let app_ui_delegate = app_ui_delegate.clone();
@@ -133,15 +152,22 @@ impl App {
             "idle"
         };
 
-        run_ui(&zelf, &app_ui_delegate, initial_rtmp.to_owned()).await; // long long awaiting
+        run_ui(
+            context,
+            app_dir,
+            &zelf,
+            &app_ui_delegate,
+            initial_rtmp.to_owned(),
+        )
+        .await; // long long awaiting
     }
 
-    pub async fn show_check_again_terms_dialog_if_expired(&self) -> bool {
+    pub async fn show_check_again_terms_dialog_if_expired(&self, app_dir: &Path) -> bool {
         let mut settings = self.settings.lock().await;
         match check_expired_terms(&self.yp_configs, &mut settings).await {
             Ok(true) => true,
             Ok(false) => {
-                save_settings_and_show_dialog_if_error(&settings).await;
+                save_settings_and_show_dialog_if_error(app_dir, &settings).await;
                 self.ui.reset_yp_terms(&settings);
                 false
             }

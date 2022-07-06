@@ -1,4 +1,5 @@
 use std::{
+    path::PathBuf,
     process::Command,
     sync::{Arc, Weak},
 };
@@ -7,7 +8,8 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use tauri::{
-    generate_context, AppHandle, Invoke, InvokeMessage, Manager, UserAttentionType,
+    utils::assets::EmbeddedAssets, AppHandle, Context, Invoke, InvokeMessage, Manager,
+    UserAttentionType,
 };
 
 use crate::{
@@ -21,7 +23,7 @@ use crate::{
         },
         utils::{dialog::show_dialog, tcp::find_free_port},
     },
-    features::{files::APP_DIR, terms_check},
+    features::terms_check,
 };
 
 /*
@@ -78,10 +80,15 @@ impl InvokeMessageExt for InvokeMessage {
     }
 }
 
-fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
+fn build_app(
+    context: Context<EmbeddedAssets>,
+    app_dir: PathBuf,
+    delegate: Weak<DynSendSyncWindowDelegate>,
+) -> tauri::App {
     tauri::Builder::default()
         .manage(WindowState { delegate })
-        .invoke_handler(|Invoke { message, resolver }| {
+        .invoke_handler(move |Invoke { message, resolver }| {
+            let app_dir = app_dir.clone();
             tauri::async_runtime::spawn(async move {
                 let delegate = message.state_ref().get::<WindowState>().delegate();
                 match message.command() {
@@ -118,7 +125,7 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                             "explorer.exe"
                         };
                         Command::new(cmd)
-                            .arg(APP_DIR.to_str().unwrap())
+                            .arg(app_dir.to_str().unwrap())
                             .output()
                             .unwrap();
                     }
@@ -126,7 +133,7 @@ fn build_app(delegate: Weak<DynSendSyncWindowDelegate>) -> tauri::App {
                 }
             });
         })
-        .build(generate_context!())
+        .build(context)
         .map_err(|err| {
             let mut note = "";
             if let tauri::Error::Runtime(tauri_runtime::Error::CreateWebview(err)) = &err {
@@ -155,8 +162,13 @@ impl Window {
         }
     }
 
-    pub fn run(&self, delegate: Weak<DynSendSyncWindowDelegate>) {
-        let app = build_app(delegate.clone());
+    pub fn run(
+        &self,
+        context: Context<EmbeddedAssets>,
+        app_dir: PathBuf,
+        delegate: Weak<DynSendSyncWindowDelegate>,
+    ) {
+        let app = build_app(context, app_dir, delegate.clone());
         *self.app_handle.lock().unwrap() = Some(app.app_handle());
         if let Some(delegate) = delegate.upgrade() {
             delegate.on_build_app()

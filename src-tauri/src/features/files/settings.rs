@@ -1,4 +1,4 @@
-use std::io::ErrorKind;
+use std::{io::ErrorKind, path::Path};
 
 use log::error;
 use tokio::fs::{create_dir, read_to_string, rename, write, OpenOptions};
@@ -8,9 +8,7 @@ use crate::core::{
     utils::{dialog::show_dialog, tcp::find_free_port},
 };
 
-use super::APP_DIR;
-
-async fn rename_bak(base_path: &str) {
+async fn rename_bak(app_dir: &Path, base_path: &str) {
     let mut i = 0;
     let path = loop {
         let idx = if i == 0 { "".into() } else { format!(".{}", i) };
@@ -28,13 +26,13 @@ async fn rename_bak(base_path: &str) {
         i += 1;
     };
 
-    if let Err(err) = rename(APP_DIR.join("settings.json"), path).await {
+    if let Err(err) = rename(app_dir.join("settings.json"), path).await {
         log::error!("err {}", err);
     }
 }
 
-pub async fn load_settings_and_show_dialog_if_error() -> Settings {
-    let path = APP_DIR.join("settings.json");
+pub async fn load_settings_and_show_dialog_if_error(app_dir: &Path) -> Settings {
+    let path = app_dir.join("settings.json");
     match read_to_string(&path).await {
         Err(err) => {
             if err.kind() != ErrorKind::NotFound {
@@ -55,7 +53,7 @@ pub async fn load_settings_and_show_dialog_if_error() -> Settings {
                     "設定ファイルが破損しています。({:?})\n設定をリセットします。",
                     err
                 ));
-                rename_bak(&path.to_string_lossy()).await;
+                rename_bak(app_dir, &path.to_string_lossy()).await;
                 Settings::default()
             }
             Ok(settings) => {
@@ -66,14 +64,14 @@ pub async fn load_settings_and_show_dialog_if_error() -> Settings {
     }
 }
 
-pub async fn save_settings_and_show_dialog_if_error(settings: &Settings) {
-    if let Err(err) = create_dir(APP_DIR.as_path()).await {
+pub async fn save_settings_and_show_dialog_if_error(app_dir: &Path, settings: &Settings) {
+    if let Err(err) = create_dir(app_dir).await {
         if err.kind() != ErrorKind::AlreadyExists {
             panic!("{:?}", err);
         }
     }
     let opt = write(
-        APP_DIR.join("settings.json"),
+        app_dir.join("settings.json"),
         serde_json::to_string_pretty(&StoringSettings::from(settings)).unwrap(),
     )
     .await;

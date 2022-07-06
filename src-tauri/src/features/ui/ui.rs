@@ -1,8 +1,11 @@
-use std::sync::{Arc, Weak};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Weak},
+};
 
 use async_trait::async_trait;
 use log::{error, warn};
-use tauri::api::dialog;
+use tauri::{api::dialog, utils::assets::EmbeddedAssets, Context};
 
 use crate::core::{
     entities::{
@@ -123,6 +126,8 @@ impl Ui {
 
     pub fn run(
         &self,
+        context: Context<EmbeddedAssets>,
+        app_dir: PathBuf,
         initial_rtmp: String,
         initial_channel_name: String,
         delegate: Weak<DynSendSyncUiDelegate>,
@@ -137,7 +142,7 @@ impl Ui {
             title: Arc::downgrade(&self.title),
         }));
         let weak = Arc::downgrade(self.ui_window_delegate.lock().unwrap().as_ref().unwrap());
-        self.window.run(weak);
+        self.window.run(context, app_dir, weak);
     }
 
     pub fn notify_failure(&self, failure: &Failure) {
