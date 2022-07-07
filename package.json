@@ -16,7 +16,7 @@
     "react-redux": "^7.2.6"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^1.0.2",
+    "@tauri-apps/cli": "^1.0.3",
     "@types/react": "^17.0.33",
     "@types/react-dom": "^17.0.10",
     "@vitejs/plugin-react": "^1.0.7",

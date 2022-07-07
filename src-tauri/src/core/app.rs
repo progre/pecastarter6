@@ -6,7 +6,12 @@ use std::{
 };
 
 use log::warn;
-use tauri::{api::path::app_dir, generate_context, utils::assets::EmbeddedAssets, Context};
+use tauri::{
+    api::path::{app_dir, resource_dir},
+    generate_context,
+    utils::assets::EmbeddedAssets,
+    Context, Env,
+};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -105,9 +110,9 @@ pub struct App {
 }
 
 impl App {
-    async fn new(app_dir: &Path) -> Self {
+    async fn new(app_dir: &Path, resource_dir: &Path) -> Self {
         Self {
-            yp_configs: read_yp_configs_and_show_dialog_if_error(app_dir).await,
+            yp_configs: read_yp_configs_and_show_dialog_if_error(app_dir, resource_dir).await,
             settings: Mutex::new(load_settings_and_show_dialog_if_error(app_dir).await),
             ui: Ui::new(),
             rtmp_server: Mutex::new(RtmpServer::new()),
@@ -121,8 +126,9 @@ impl App {
         let context = generate_context!();
 
         let app_dir = app_dir(context.config()).unwrap();
+        let resource_dir = resource_dir(context.package_info(), &Env::default()).unwrap();
 
-        let zelf = Arc::new(Self::new(&app_dir).await);
+        let zelf = Arc::new(Self::new(&app_dir, &resource_dir).await);
         let app_rtmp_listener_delegate = Arc::new(AppRtmpListenerDelegate::new(
             Arc::downgrade(&zelf),
             app_dir.clone(),

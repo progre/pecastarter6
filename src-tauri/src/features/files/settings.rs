@@ -1,12 +1,14 @@
 use std::{io::ErrorKind, path::Path, process::exit};
 
 use log::error;
-use tauri::api::dialog;
 use tokio::fs::{create_dir, read_to_string, rename, write, OpenOptions};
 
 use crate::core::{
     entities::settings::{Settings, StoredSettings, StoringSettings},
-    utils::{dialog::show_dialog, tcp::find_free_port},
+    utils::{
+        dialog::{show_confirm, show_dialog},
+        tcp::find_free_port,
+    },
 };
 
 async fn rename_bak(app_dir: &Path, base_path: &str) {
@@ -35,16 +37,11 @@ async fn rename_bak(app_dir: &Path, base_path: &str) {
 pub async fn load_settings_and_show_dialog_if_error(app_dir: &Path) -> Settings {
     let old_path = app_dir.parent().unwrap().join("PeCa Starter");
     if old_path.exists() && !app_dir.exists() {
-        let none: Option<&tauri::Window> = None;
-        if !dialog::blocking::confirm(
-            none,
-            "Confirm",
-            format!(
-                "設定ファイルを移動します。\nfrom: {}\nto: {}",
-                old_path.to_string_lossy(),
-                app_dir.to_string_lossy()
-            ),
-        ) {
+        if !show_confirm(&format!(
+            "設定ファイルを移動します。\nfrom: {}\nto: {}",
+            old_path.to_string_lossy(),
+            app_dir.to_string_lossy()
+        )) {
             exit(0);
             // -> !
         }

@@ -1,6 +1,5 @@
 use std::{
     collections::BTreeMap,
-    env::current_exe,
     io::ErrorKind,
     path::{Path, PathBuf},
 };
@@ -30,8 +29,11 @@ async fn read_yp_config_and_show_dialog_if_error(path: PathBuf) -> Option<YPConf
     }
 }
 
-pub async fn read_yp_configs_and_show_dialog_if_error(app_dir: &Path) -> Vec<YPConfig> {
-    let exe_dir_yp = current_exe().unwrap().with_file_name("yp");
+pub async fn read_yp_configs_and_show_dialog_if_error(
+    app_dir: &Path,
+    resource_dir: &Path,
+) -> Vec<YPConfig> {
+    let exe_dir_yp = resource_dir.join("yp");
     let app_dir_yp = app_dir.join("yp");
 
     let mut yp_configs = BTreeMap::new();

@@ -5,7 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 use log::{error, warn};
-use tauri::{api::dialog, utils::assets::EmbeddedAssets, Context};
+use tauri::{utils::assets::EmbeddedAssets, Context};
 
 use crate::core::{
     entities::{
@@ -15,7 +15,7 @@ use crate::core::{
         },
         yp_config::YPConfig,
     },
-    utils::failure::Failure,
+    utils::{dialog::show_dialog, failure::Failure},
 };
 
 use super::window::{Window, WindowDelegate};
@@ -194,7 +194,6 @@ impl Ui {
     }
 
     fn notify_fatal(&self, message: &str) {
-        let none: Option<&tauri::Window> = None;
-        dialog::blocking::message(none, "Fatal", message);
+        show_dialog(message);
     }
 }
