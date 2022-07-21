@@ -1,4 +1,4 @@
-import { invoke, os } from '@tauri-apps/api';
+import { app, invoke, os } from '@tauri-apps/api';
 import { Event, listen } from '@tauri-apps/api/event';
 import { appWindow } from '@tauri-apps/api/window';
 import { confirm } from '@tauri-apps/api/dialog';
@@ -54,6 +54,7 @@ export default function App(props: {
   const [contactStatus, setContactStatus] = useState(props.contactStatus);
   const [status, setStatus] = useState(initialStatus);
   const [platform, setPlatform] = useState('');
+  const [version, setVersion] = useState('');
 
   useEffect(() => {
     const notifyPromise = listenWrapped(
@@ -108,6 +109,8 @@ export default function App(props: {
     (async () => {
       const platform = await os.platform();
       setPlatform(platform);
+      const version = await app.getVersion();
+      setVersion(version);
     })();
 
     return () => {
@@ -164,6 +167,7 @@ export default function App(props: {
         <TabContent label="その他">
           <OtherSettings
             platform={platform}
+            version={version}
             settings={settings.otherSettings}
             onChange={(otherSettings) => {
               invoke('put_settings', { otherSettings });

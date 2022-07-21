@@ -20,6 +20,7 @@ export default function OtherSettings(props: {
     | 'win32',
     string
   >;
+  version: string;
   settings: Settings;
   onChange(value: Settings): void;
 }) {
@@ -114,6 +115,13 @@ export default function OtherSettings(props: {
         >
           設定ファイルの場所を開く
         </DefaultButton>
+      </div>
+      <div
+        css={css`
+          margin-top: 4ex;
+        `}
+      >
+        アプリバージョン: v{props.version}
       </div>
     </div>
   );
