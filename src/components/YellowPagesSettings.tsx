@@ -1,7 +1,6 @@
 import { css } from '@emotion/react';
 import { invoke } from '@tauri-apps/api';
 import { open } from '@tauri-apps/api/shell';
-import { useState } from 'react';
 import {
   EachYellowPagesSettings,
   YellowPagesSettings as Settings,
@@ -128,21 +127,26 @@ export default function YellowPagesSettings(props: {
       {[
         {
           protocol: 'IPv4' as 'IPv4' | 'IPv6',
+          ypConfigs: props.ypConfigs,
+          usedHostForIPV4: undefined,
           value: props.settings.ipv4,
           onChange: (ipv4: EachYellowPagesSettings) => update({ ipv4 }),
         },
         {
           protocol: 'IPv6' as 'IPv4' | 'IPv6',
+          ypConfigs: props.ypConfigs.filter((x) => x.supportIpv6),
+          usedHostForIPV4: props.settings.ipv4.host,
           value: props.settings.ipv6,
           onChange: (ipv6: EachYellowPagesSettings) => update({ ipv6 }),
         },
-      ].map(({ protocol, value, onChange }) => (
+      ].map(({ protocol, ypConfigs, usedHostForIPV4, value, onChange }) => (
         <EachYellowPagesSettingsView
           key={protocol}
           protocol={protocol}
+          ypConfigs={ypConfigs}
+          usedHostForIPV4={usedHostForIPV4}
           value={value}
           onChange={onChange}
-          ypConfigs={props.ypConfigs}
           agreedTerms={props.settings.agreedTerms}
           readedTerms={props.readedTerms}
           onReadTerms={props.onReadTerms}
