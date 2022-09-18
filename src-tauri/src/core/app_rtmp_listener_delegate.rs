@@ -7,6 +7,7 @@ use std::{
 
 use async_trait::async_trait;
 use tokio::{net::TcpStream, sync::Mutex, time::sleep};
+use versions::Version;
 
 use crate::{
     core::{
@@ -107,10 +108,23 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
         let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
         pipe(incoming, outgoing).await; // long long awaiting
 
-        // NOTE: If the channel is deleted within 3 seconds of the stream closed,
-        //       a tcp listener on PeerCastStation will remain.
-        //       https://github.com/kumaryu/peercaststation/issues/490
-        sleep(Duration::from_secs(6)).await;
+        let pecast_version = {
+            let settings = app.settings.lock().await;
+            let result = app.broadcasting.lock().await.fetch_version(&settings).await;
+            match result {
+                Ok(ok) => ok,
+                Err(err) => {
+                    app.ui.notify_failure(&err);
+                    return;
+                }
+            }
+        };
+        if pecast_version < Version::new("3.1.0.0").unwrap() {
+            // NOTE: If the channel is deleted within 3 seconds of the stream closed,
+            //       a tcp listener on PeerCastStation will remain.
+            //       https://github.com/kumaryu/peercaststation/issues/490
+            sleep(Duration::from_secs(6)).await;
+        }
 
         app.ui.set_rtmp("listening".to_owned());
 

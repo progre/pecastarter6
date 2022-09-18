@@ -53,6 +53,27 @@ impl PeCaStAdapter {
         Self { port }
     }
 
+    pub async fn get_version_info(&self) -> Result<String, Failure> {
+        let result_json = request_rpc::<()>(self.port, "getVersionInfo", None).await?;
+        Ok(result_json
+            .as_object()
+            .ok_or_else(|| {
+                error!("Result is not object.");
+                Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
+            })?
+            .get("agentName")
+            .ok_or_else(|| {
+                error!("agentName is undefined.");
+                Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
+            })?
+            .as_str()
+            .ok_or_else(|| {
+                error!("agentName is not string.");
+                Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
+            })?
+            .to_owned())
+    }
+
     pub async fn get_yellow_pages(&self) -> Result<Vec<(i32, String)>, Failure> {
         let result_json = request_rpc::<()>(self.port, "getYellowPages", None).await?;
         let list = result_json.as_array().ok_or_else(|| {
