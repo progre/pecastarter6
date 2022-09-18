@@ -1,6 +1,6 @@
-use std::num::NonZeroU16;
+use std::num::{NonZeroU16, NonZeroU32};
 
-use log::error;
+use log::{error, trace};
 use reqwest::Client;
 use serde::Serialize;
 use serde_json::Value;
@@ -9,19 +9,19 @@ use crate::core::utils::failure::Failure;
 
 use super::view_xml::ViewXml;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Info<'a> {
     pub name: &'a str,
     pub url: &'a str,
-    pub bitrate: &'a str,
+    pub bitrate: Option<NonZeroU32>,
     pub mime_type: &'a str,
     pub genre: &'a str,
     pub desc: &'a str,
     pub comment: &'a str,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Track<'a> {
     pub name: &'a str,
@@ -130,7 +130,7 @@ impl PeCaStAdapter {
         network_type: &str,
     ) -> Result<String, Failure> {
         let params = {
-            #[derive(Serialize)]
+            #[derive(Debug, Serialize)]
             #[serde(rename_all = "camelCase")]
             struct Params<'a> {
                 yellow_page_id: Option<i32>,
@@ -151,6 +151,7 @@ impl PeCaStAdapter {
                 network_type,
             }
         };
+        trace!("broadcast_channel {:?}", params);
 
         Ok(request_rpc(self.port, "broadcastChannel", Some(params))
             .await?

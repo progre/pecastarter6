@@ -18,7 +18,7 @@ pub fn info<'a>(
     Info {
         name: channel_name,
         url: &channel_settings.contact_url[0],
-        bitrate: "",
+        bitrate: None,
         mime_type: "FLV",
         genre,
         desc: &channel_settings.desc,
