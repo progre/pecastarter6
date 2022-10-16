@@ -40,6 +40,7 @@ function History(props: {
           opacity: 0;
           pointer-events: none;
         `}
+        styles={{ dropdown: { width: 0 } }}
         responsiveMode={ResponsiveMode.large}
         onRenderList={(renderProps, defaultRender) => (
           <>
