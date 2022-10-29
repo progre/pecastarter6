@@ -8,17 +8,13 @@
     "@fortawesome/free-regular-svg-icons": "6.1.1",
     "@fortawesome/free-solid-svg-icons": "^6.1.1",
     "@fortawesome/react-fontawesome": "^0.1.18",
-    "@reduxjs/toolkit": "^1.7.2",
     "@tauri-apps/api": "^1.0.2",
     "modern-normalize": "^1.1.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-redux": "^7.2.6"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.0.5",
-    "@types/react": "^17.0.33",
-    "@types/react-dom": "^17.0.10",
     "@vitejs/plugin-react": "^1.0.7",
     "cross-env": "^7.0.3",
     "type-fest": "^2.12.0",
