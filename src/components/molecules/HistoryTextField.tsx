@@ -12,7 +12,7 @@ export default function HistoryTextField(props: {
   onChange: (value: string) => void;
 }) {
   const [value, setValue] = useState(props.value);
-  const ref = useRef<HTMLInputElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [extended, setExtended] = useState(false);
   const limit = 5;
   return (
@@ -63,7 +63,11 @@ export default function HistoryTextField(props: {
       onItemClick={(_e, option, _i) => setValue(option!!.text)}
       onInputValueChange={(value) => setValue(value)}
       onMenuDismissed={() => setExtended(false)}
-      onBlurCapture={() => {
+      onBlurCapture={(e) => {
+        if ((e.target as EventTarget as HTMLElement).tagName !== 'INPUT') {
+          // NOTE: Allow the text input field, but not the button
+          return;
+        }
         if (value === props.value) {
           return;
         }
