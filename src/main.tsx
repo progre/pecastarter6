@@ -12,7 +12,9 @@ import './index.css';
 initFluentUI();
 
 async function main() {
-  const [ypConfigs, settings, contactStatus] = await invoke('initial_data');
+  const [ypConfigs, settings, contactStatus] = (await invoke(
+    'initial_data'
+  )) as any;
 
   ReactDOM.render(
     <React.StrictMode>

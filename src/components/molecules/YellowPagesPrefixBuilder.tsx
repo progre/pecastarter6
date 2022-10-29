@@ -1,6 +1,5 @@
 import { css } from '@emotion/react';
 import { Checkbox, Dropdown, ResponsiveMode, TextField } from '@fluentui/react';
-import { useCallback } from 'react';
 import YPConfig, { YPConfigParams } from '../../entities/YPConfig';
 
 export default function YellowPagesPrefixBuilder(props: {
