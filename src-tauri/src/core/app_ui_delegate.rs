@@ -92,6 +92,18 @@ impl UiDelegate for AppUiDelegate {
         let mut settings = app.settings.lock().await;
         settings.channel_settings = channel_settings;
 
+        // PeCa 以外のチャンネル情報反映
+        if let Some(hidden) = &settings.other_settings.hidden {
+            if let Err(err) = self
+                .app()
+                .apply_channel_settings_to_external_channels(hidden, &settings.channel_settings)
+                .await
+            {
+                let failure = Failure::Warn(err.to_string());
+                app.ui.notify_failure(&failure);
+            }
+        }
+
         let broadcasting = app.broadcasting.lock().await;
         if broadcasting.is_broadcasting() {
             app.update_channel(&broadcasting, &settings).await;

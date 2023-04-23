@@ -1,4 +1,5 @@
 pub mod bbs;
+pub mod external_channels;
 pub mod files;
 pub mod logger;
 pub mod peercast;

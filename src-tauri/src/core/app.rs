@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::Result;
 use log::warn;
 use tauri::{
     api::path::{app_dir, resource_dir},
@@ -21,6 +22,7 @@ use crate::{
     },
     features::{
         bbs::BbsListenerContainer,
+        external_channels::ExternalChannels,
         files::{
             settings::{
                 load_settings_and_show_dialog_if_error, save_settings_and_show_dialog_if_error,
@@ -37,8 +39,9 @@ use crate::{
 
 use super::{
     app_bbs_listener_delegate::AppBbsListenerDelegate,
-    app_rtmp_listener_delegate::AppRtmpListenerDelegate, app_ui_delegate::AppUiDelegate,
-    entities::settings::ChannelContent,
+    app_rtmp_listener_delegate::AppRtmpListenerDelegate,
+    app_ui_delegate::AppUiDelegate,
+    entities::settings::{ChannelContent, ChannelSettings, Hidden},
 };
 
 async fn listen_rtmp_if_need(
@@ -107,6 +110,7 @@ pub struct App {
     pub broadcasting: Mutex<Broadcasting>,
     pub bbs_listener_container: std::sync::Mutex<BbsListenerContainer>,
     pub logger_controller: LoggerController,
+    external_channels: Mutex<Option<ExternalChannels>>,
 }
 
 impl App {
@@ -119,6 +123,7 @@ impl App {
             broadcasting: Mutex::new(Broadcasting::new()),
             bbs_listener_container: std::sync::Mutex::new(BbsListenerContainer::new()),
             logger_controller: LoggerController::new(),
+            external_channels: Default::default(),
         }
     }
 
@@ -231,5 +236,21 @@ impl App {
         settings.channel_settings.contact_url =
             updated_value_with_history(take(&mut settings.channel_settings.contact_url), 5);
         ui.push_settings(settings);
+    }
+
+    pub async fn apply_channel_settings_to_external_channels(
+        &self,
+        hidden: &Hidden,
+        channel_settings: &ChannelSettings,
+    ) -> Result<()> {
+        let mut external_channels = self.external_channels.lock().await;
+        if external_channels.is_none() {
+            *external_channels = Some(ExternalChannels::new(hidden));
+        }
+        external_channels
+            .as_mut()
+            .unwrap()
+            .apply_channel_settings(channel_settings)
+            .await
     }
 }

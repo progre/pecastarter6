@@ -11,7 +11,7 @@ use crate::core::app::App;
 #[tokio::main]
 async fn main() {
     if cfg!(debug_assertions) {
-        std::env::set_var("RUST_LOG", "app=trace");
+        std::env::set_var("RUST_LOG", "app=trace,reqwest=trace");
         env_logger::init();
     }
 
