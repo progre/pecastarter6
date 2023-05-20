@@ -81,6 +81,7 @@ async fn broadcast<'a>(
 ) -> Result<String, Failure> {
     // WTF: IPv6 一時アドレスが正しく設定されないケースの対策
     adapter.check_ports().await?;
+    adapter.get_external_ip_addresses().await?;
     adapter
         .broadcast_channel(
             Some(yp_id),

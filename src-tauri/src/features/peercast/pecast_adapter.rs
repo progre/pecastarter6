@@ -139,6 +139,17 @@ impl PeCaStAdapter {
         Ok(())
     }
 
+    pub async fn get_external_ip_addresses(&self) -> Result<(), Failure> {
+        request_rpc::<()>(self.port, "getExternalIPAddresses", None)
+            .await?
+            .as_array()
+            .ok_or_else(|| {
+                error!("Result is not array.");
+                Failure::Fatal("Failure communicating with PeerCastStation.".to_owned())
+            })?;
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn broadcast_channel<'a>(
         &self,
