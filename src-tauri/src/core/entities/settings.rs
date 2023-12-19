@@ -172,6 +172,8 @@ impl<'a> From<&'a ChannelSettings> for StoringChannelSettings<'a> {
 pub struct Hidden {
     pub fedimovie_email: String,
     pub fedimovie_password: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_redirect_port: Option<NonZeroU16>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

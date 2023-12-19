@@ -32,6 +32,7 @@ use crate::{
         logger::LoggerController,
         peercast::broadcasting::Broadcasting,
         rtmp::rtmp_server::RtmpServer,
+        stream_redirect::StreamRedirect,
         terms_check::check_expired_terms,
         ui::Ui,
     },
@@ -162,6 +163,21 @@ impl App {
         } else {
             "idle"
         };
+
+        {
+            let settings = zelf.settings.lock().await;
+            if let Some(hidden) = &settings.other_settings.hidden {
+                if let Some(stream_redirect_port) = hidden.stream_redirect_port {
+                    StreamRedirect::default()
+                        .run(
+                            stream_redirect_port,
+                            settings.general_settings.peer_cast_port,
+                            settings.general_settings.channel_name[0].clone(),
+                        )
+                        .await;
+                }
+            };
+        }
 
         run_ui(
             context,

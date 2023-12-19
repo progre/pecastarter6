@@ -12,6 +12,7 @@ rust-version = "1.61"
 tauri-build = { version = "1.0.0", features = [] }
 
 [dependencies]
+actix-web = "4.4.0"
 anyhow = "1.0"
 async-trait = "0.1"
 chrono = "0.4"
