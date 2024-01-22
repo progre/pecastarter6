@@ -22,17 +22,16 @@ use crate::{
     },
     features::{
         bbs::BbsListenerContainer,
-        external_channels::ExternalChannels,
         files::{
             settings::{
                 load_settings_and_show_dialog_if_error, save_settings_and_show_dialog_if_error,
             },
             yp_configs::read_yp_configs_and_show_dialog_if_error,
         },
+        hidden_features::{external_channels::ExternalChannels, stream_redirect::StreamRedirect},
         logger::LoggerController,
         peercast::broadcasting::Broadcasting,
         rtmp::rtmp_server::RtmpServer,
-        stream_redirect::StreamRedirect,
         terms_check::check_expired_terms,
         ui::Ui,
     },
