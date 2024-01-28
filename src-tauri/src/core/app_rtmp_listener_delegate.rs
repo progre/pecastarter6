@@ -18,7 +18,8 @@ use crate::{
         },
     },
     features::{
-        files::settings::save_settings_and_show_dialog_if_error, logger::LoggerController,
+        files::settings::save_settings_and_show_dialog_if_error,
+        hidden_features::jpnkn_bbs_auto_comment::JpnknBbsAutoComment, logger::LoggerController,
         peercast::broadcasting::Broadcasting, rtmp::RtmpListenerDelegate,
     },
 };
@@ -45,6 +46,7 @@ async fn start_channel(
     yp_configs: &[YPConfig],
     settings: &Settings,
     logger_controller: &LoggerController,
+    jpnkn_bbs_auto_comment: Option<&mut JpnknBbsAutoComment>,
 ) -> Result<NonZeroU16, Failure> {
     let mut broadcasting = broadcasting.lock().await;
     let rtmp_conn_port = broadcasting.broadcast(yp_configs, settings).await?;
@@ -55,6 +57,9 @@ async fn start_channel(
         .on_broadcast(ipv4_id, ipv6_id, settings)
         .await
         .map_err(|err| Failure::Warn(err.to_string()))?;
+    if let Some(jpnkn_bbs_auto_comment) = jpnkn_bbs_auto_comment {
+        jpnkn_bbs_auto_comment.on_broadcast().await;
+    }
 
     Ok(rtmp_conn_port)
 }
@@ -63,11 +68,15 @@ async fn stop_channel(
     broadcasting: &Mutex<Broadcasting>,
     settings: &Settings,
     logger_controller: &LoggerController,
+    jpnkn_bbs_auto_comment: Option<&mut JpnknBbsAutoComment>,
 ) -> Result<(), Failure> {
     logger_controller
         .on_stop_channel()
         .await
         .map_err(|err| Failure::Warn(err.to_string()))?;
+    if let Some(jpnkn_bbs_auto_comment) = jpnkn_bbs_auto_comment {
+        jpnkn_bbs_auto_comment.on_stop_channel();
+    }
 
     let peer_cast_port = settings.general_settings.peer_cast_port;
     broadcasting.lock().await.stop(peer_cast_port).await
@@ -84,10 +93,29 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
             return;
         }
 
-        let result = {
+        let (result, mut jpnkn_bbs_auto_comment) = {
             let settings = app.settings.lock().await;
+            let mut jpnkn_bbs_auto_comment = if settings
+                .other_settings
+                .hidden
+                .as_ref()
+                .map(|x| x.jpnkn_bbs_auto_comment)
+                .unwrap_or_default()
+            {
+                Some(JpnknBbsAutoComment::new(app.clone()))
+            } else {
+                None
+            };
             let lc = &app.logger_controller;
-            start_channel(&app.broadcasting, &app.yp_configs, &settings, lc).await
+            let result = start_channel(
+                &app.broadcasting,
+                &app.yp_configs,
+                &settings,
+                lc,
+                jpnkn_bbs_auto_comment.as_mut(),
+            )
+            .await;
+            (result, jpnkn_bbs_auto_comment)
         };
         let rtmp_conn_port = match result {
             Ok(ok) => ok,
@@ -130,7 +158,13 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
 
         let result = {
             let settings = app.settings.lock().await;
-            stop_channel(&app.broadcasting, &settings, &app.logger_controller).await
+            stop_channel(
+                &app.broadcasting,
+                &settings,
+                &app.logger_controller,
+                jpnkn_bbs_auto_comment.as_mut(),
+            )
+            .await
         };
         match result {
             Ok(_) => {}

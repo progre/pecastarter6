@@ -174,6 +174,8 @@ pub struct Hidden {
     pub fedimovie_password: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream_redirect_port: Option<NonZeroU16>,
+    #[serde(default)]
+    pub jpnkn_bbs_auto_comment: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
