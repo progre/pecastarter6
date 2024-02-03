@@ -133,7 +133,13 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
 
         app.ui.set_rtmp("streaming".to_owned());
 
-        let outgoing = connect(&format!("localhost:{}", rtmp_conn_port)).await;
+        let outgoing = match connect(&format!("localhost:{}", rtmp_conn_port)).await {
+            Ok(ok) => ok,
+            Err(err) => {
+                app.ui.notify_failure(&err);
+                return;
+            }
+        };
         pipe(incoming, outgoing).await; // long long awaiting
 
         let pecast_version = {

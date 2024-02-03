@@ -1,5 +1,6 @@
 use std::num::NonZeroU16;
 
+use anyhow::Result;
 use log::trace;
 use tokio::{
     io::copy,
@@ -7,14 +8,20 @@ use tokio::{
     net::{TcpListener, TcpStream, ToSocketAddrs},
 };
 
-pub async fn connect<A: ToSocketAddrs>(addr: A) -> TcpStream {
-    loop {
+use super::failure::Failure;
+
+pub async fn connect<A: ToSocketAddrs>(addr: A) -> Result<TcpStream, Failure> {
+    for _ in 0..5 {
         let result = TcpStream::connect(&addr).await;
-        if let Ok(stream) = result {
-            break stream;
+        match result {
+            Ok(stream) => return Ok(stream),
+            Err(e) => {
+                log::trace!("connect error: {}", e);
+                log::trace!("retry...");
+            }
         }
-        log::trace!("retry...");
     }
+    Err(Failure::Fatal("Connection error".into()))
 }
 
 pub async fn pipe(incoming: TcpStream, outgoing: TcpStream) {
