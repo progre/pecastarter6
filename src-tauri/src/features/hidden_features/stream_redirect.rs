@@ -58,7 +58,13 @@ async fn get_my_flv(data: web::Data<(NonZeroU16, String)>) -> impl Responder {
     let (port, channel_name) = data.get_ref();
     let origin = format!("http://127.0.0.1:{}", port);
     let client = reqwest::Client::new();
-    let Ok(channel_id) = fetch_channel_id(&client, &origin, channel_name).await else {
+    let channel_id = if let Ok(channel_id) =
+        fetch_channel_id(&client, &origin, &format!("{channel_name} (IPv6)")).await
+    {
+        channel_id
+    } else if let Ok(channel_id) = fetch_channel_id(&client, &origin, channel_name).await {
+        channel_id
+    } else {
         return HttpResponse::NotFound().finish();
     };
     let url = format!("{}/stream/{}.flv", origin, channel_id);
