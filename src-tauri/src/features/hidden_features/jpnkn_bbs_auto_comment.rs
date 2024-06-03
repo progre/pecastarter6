@@ -9,6 +9,30 @@ use tokio_stream::StreamExt;
 
 use crate::core::app::App;
 
+async fn apply_message(app: &App, msg: &str) {
+    let msg = msg.replace("<br>", " ");
+    const MAX_LEN: usize = 200;
+    let msg = if msg.len() > MAX_LEN {
+        msg.chars()
+            .take(MAX_LEN - 1)
+            .chain(['…'])
+            .collect::<String>()
+    } else {
+        msg
+    };
+
+    let mut settings = app.settings.lock().await.clone();
+    if let Some(comment) = settings.channel_settings.comment.first_mut() {
+        *comment = format!("{}{}", msg, comment);
+        trace!("update comment: {}", comment);
+    } else {
+        settings.channel_settings.comment.push(msg);
+    }
+    let broadcasting = app.broadcasting.lock().await;
+    let result = broadcasting.update(&app.yp_configs, &settings).await;
+    result.unwrap();
+}
+
 pub struct JpnknBbsAutoComment {
     app: Arc<App>,
     join_handle: Option<JoinHandle<()>>,
@@ -53,17 +77,7 @@ impl JpnknBbsAutoComment {
                             continue;
                         }
                     };
-                    let mut settings = app.settings.lock().await.clone();
-                    // settings.channel_settings.comment の銭湯を取得するか、insertする
-                    let comment = settings.channel_settings.comment.get_mut(0).unwrap();
-                    *comment = format!("{}{}", message, comment);
-                    trace!("update comment: {}", comment);
-                    app.broadcasting
-                        .lock()
-                        .await
-                        .update(&app.yp_configs, &settings)
-                        .await
-                        .unwrap();
+                    apply_message(&app, &message).await;
                 }
             }
         }));
