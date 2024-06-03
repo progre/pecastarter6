@@ -13,7 +13,6 @@ use crate::core::entities::contact_status::ContactStatus;
 
 pub trait BbsListenerDelegate {
     fn on_update_contact_status(&self, contact_status: &ContactStatus);
-    fn on_update_contact_url(&self, url: String);
 }
 
 async fn fetch_html_title(url: &str) -> Option<String> {
@@ -147,7 +146,6 @@ impl BbsListenerContainer {
         struct EmptyBbsListenerDelegate {}
         impl BbsListenerDelegate for EmptyBbsListenerDelegate {
             fn on_update_contact_status(&self, _contact_status: &ContactStatus) {}
-            fn on_update_contact_url(&self, _url: String) {}
         }
 
         let empty_delegate = Arc::new(EmptyBbsListenerDelegate {});
@@ -205,7 +203,7 @@ impl BbsListenerContainer {
             let title_mutex = self.title.clone();
             spawn(async move {
                 if let Some(title) = fetch_html_title(&url).await {
-                    *title_mutex.lock().unwrap() = title.clone();
+                    title_mutex.lock().unwrap().clone_from(&title);
                     delegate
                         .upgrade()
                         .unwrap()

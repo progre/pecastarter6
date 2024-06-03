@@ -25,16 +25,11 @@ impl JpnknBbsAutoComment {
     pub async fn on_broadcast(&mut self) {
         let app = self.app.clone();
         self.join_handle = Some(spawn(async move {
-            let url = app
-                .settings
-                .lock()
-                .await
-                .channel_settings
-                .contact_url
-                .get(0)
-                .cloned()
-                .unwrap_or_else(|| "".into())
-                .to_owned();
+            let url = {
+                let settings = app.settings.lock().await;
+                let contact_url = settings.channel_settings.contact_url.first();
+                contact_url.cloned().unwrap_or_else(|| "".into()).to_owned()
+            };
             let Some(board_name) = Regex::new(r"https://bbs.jpnkn.com/([^/]+)/")
                 .unwrap()
                 .captures(&url)

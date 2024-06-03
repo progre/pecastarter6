@@ -18,12 +18,6 @@ impl AppBbsListenerDelegate {
 
 impl BbsListenerDelegate for AppBbsListenerDelegate {
     fn on_update_contact_status(&self, contact_status: &ContactStatus) {
-        self.app()
-            .ui
-            .push_contact_status(contact_status);
-    }
-
-    fn on_update_contact_url(&self, _url: String) {
-        todo!()
+        self.app().ui.push_contact_status(contact_status);
     }
 }

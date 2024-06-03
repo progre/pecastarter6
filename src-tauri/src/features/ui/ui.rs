@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     path::PathBuf,
     sync::{Arc, Weak},
 };
@@ -37,15 +38,15 @@ pub struct Title {
     pub channel_name: String,
 }
 
-impl ToString for Title {
-    fn to_string(&self) -> String {
+impl Display for Title {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let listening_icon = match self.rtmp.as_str() {
             "idle" => '×',
             "listening" => '○',
             "streaming" => '●',
             _ => unreachable!(),
         };
-        format!("{}{}", listening_icon, self.channel_name)
+        write!(f, "{}{}", listening_icon, self.channel_name)
     }
 }
 
@@ -79,8 +80,11 @@ impl WindowDelegate for UiWindowDelegate {
     }
 
     async fn on_change_general_settings(&self, general_settings: GeneralSettings) {
-        self.title.upgrade().unwrap().lock().unwrap().channel_name =
-            general_settings.channel_name[0].clone();
+        {
+            let channel_name = &general_settings.channel_name[0];
+            let title = self.title.upgrade().unwrap();
+            title.lock().unwrap().channel_name.clone_from(channel_name);
+        }
 
         self.ui_delegate()
             .on_change_general_settings(general_settings)

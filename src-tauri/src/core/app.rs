@@ -8,7 +8,7 @@ use std::{
 use anyhow::Result;
 use log::warn;
 use tauri::{
-    api::path::{app_dir, resource_dir},
+    api::path::{app_config_dir, resource_dir},
     generate_context,
     utils::assets::EmbeddedAssets,
     Context, Env,
@@ -130,7 +130,7 @@ impl App {
     pub async fn run() {
         let context = generate_context!();
 
-        let app_dir = app_dir(context.config()).unwrap();
+        let app_dir = app_config_dir(context.config()).unwrap();
         let resource_dir = resource_dir(context.package_info(), &Env::default()).unwrap();
 
         let zelf = Arc::new(Self::new(&app_dir, &resource_dir).await);
