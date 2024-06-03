@@ -170,8 +170,10 @@ impl<'a> From<&'a ChannelSettings> for StoringChannelSettings<'a> {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Hidden {
-    pub fedimovie_email: String,
-    pub fedimovie_password: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fedimovie_email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fedimovie_password: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream_redirect_port: Option<NonZeroU16>,
     #[serde(default)]
