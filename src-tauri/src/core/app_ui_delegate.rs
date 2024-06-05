@@ -92,11 +92,17 @@ impl UiDelegate for AppUiDelegate {
         let mut settings = app.settings.lock().await;
         settings.channel_settings = channel_settings;
 
-        // PeCa 以外のチャンネル情報反映
-        if let Some(hidden) = &settings.other_settings.hidden {
+        // PeCa 以外へのチャンネル情報反映
+        // let settings_2: &mut Settings = &mut settings;
+        let Settings {
+            other_settings,
+            channel_settings,
+            ..
+        } = &mut settings as &mut Settings;
+        if let Some(hidden) = &mut other_settings.hidden {
             if let Err(err) = self
                 .app()
-                .apply_channel_settings_to_external_channels(hidden, &settings.channel_settings)
+                .apply_channel_settings_to_external_channels(hidden, channel_settings)
                 .await
             {
                 let failure = Failure::Warn(err.to_string());

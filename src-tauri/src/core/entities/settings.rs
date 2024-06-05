@@ -174,6 +174,18 @@ pub struct Hidden {
     pub fedimovie_email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fedimovie_password: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restream_client_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restream_client_secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restream_access_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restream_refresh_token: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub restream_channel_ids: Vec<u64>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream_redirect_port: Option<NonZeroU16>,
     #[serde(default)]

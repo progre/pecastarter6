@@ -319,6 +319,7 @@ dependencies = [
  "env_logger",
  "futures",
  "getset",
+ "http 1.1.0",
  "log",
  "native-dialog",
  "nipper",

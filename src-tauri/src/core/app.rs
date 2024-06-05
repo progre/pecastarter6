@@ -255,7 +255,7 @@ impl App {
 
     pub async fn apply_channel_settings_to_external_channels(
         &self,
-        hidden: &Hidden,
+        hidden: &mut Hidden,
         channel_settings: &ChannelSettings,
     ) -> Result<()> {
         let mut external_channels = self.external_channels.lock().await;
@@ -265,7 +265,7 @@ impl App {
         external_channels
             .as_mut()
             .unwrap()
-            .apply_channel_settings(channel_settings)
+            .apply_channel_settings(hidden, channel_settings)
             .await
     }
 }
