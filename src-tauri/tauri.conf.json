@@ -38,7 +38,7 @@
         "digestAlgorithm": "sha256",
         "timestampUrl": "",
         "wix": {
-          "language": "jp-JP",
+          "language": "ja-JP",
           "license": "../LICENSE"
         }
       }
