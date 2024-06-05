@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "PeCa Starter",
-    "version": "6.12.0"
+    "version": "6.12.1"
   },
   "build": {
     "distDir": "../dist",
