@@ -20,7 +20,7 @@ fn genre_to_category(genre: &str) -> i32 {
     }
 }
 
-async fn oauth_client_local(client: &reqwest::Client) -> reqwest::Result<OauthClientLocal> {
+async fn oauth_client_local(client: &reqwest::Client) -> reqwest::Result<OauthClient> {
     client
         .get(format!("{}/oauth-clients/local", FEDIMOVIE_BASE_URL))
         .send()
@@ -31,15 +31,15 @@ async fn oauth_client_local(client: &reqwest::Client) -> reqwest::Result<OauthCl
 
 async fn token_from_password(
     client: &reqwest::Client,
-    oauth_client_local: &OauthClientLocal,
+    oauth_client: &OauthClient,
     username: &str,
     password: &str,
-) -> reqwest::Result<Token> {
+) -> reqwest::Result<OauthToken> {
     client
         .post(format!("{}/users/token", FEDIMOVIE_BASE_URL))
         .form(&json!({
-            "client_id": oauth_client_local.client_id,
-            "client_secret": oauth_client_local.client_secret,
+            "client_id": oauth_client.client_id,
+            "client_secret": oauth_client.client_secret,
             "grant_type": "password",
             "username": username,
             "password": password,
@@ -51,16 +51,16 @@ async fn token_from_password(
         .await
 }
 
-async fn token_from_refresh_token(
+async fn oauth_token_from_refresh_token(
     client: &reqwest::Client,
-    oauth_client_local: &OauthClientLocal,
+    oauth_client: &OauthClient,
     refresh_token: &str,
-) -> reqwest::Result<Token> {
+) -> reqwest::Result<OauthToken> {
     client
         .post(format!("{}/users/token", FEDIMOVIE_BASE_URL))
         .form(&json!({
-            "client_id": oauth_client_local.client_id,
-            "client_secret": oauth_client_local.client_secret,
+            "client_id": oauth_client.client_id,
+            "client_secret": oauth_client.client_secret,
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
         }))
@@ -73,20 +73,20 @@ async fn token_from_refresh_token(
 
 async fn auto_refresh<'a, T, F, G>(
     client: &reqwest::Client,
-    fedimovie_oauth_client_local: &mut OauthClientLocal,
-    fedimovie_token: &mut Token,
-    fedimovie_email: &str,
-    fedimovie_password: &str,
+    oauth_client: &mut OauthClient,
+    oauth_token: &mut OauthToken,
+    email: &str,
+    password: &str,
     callback: F,
 ) -> reqwest::Result<T>
 where
     F: Fn(reqwest::Client, String) -> G,
     G: Future<Output = reqwest::Result<T>>,
 {
-    if !fedimovie_oauth_client_local.client_id.is_empty() {
+    if !oauth_client.client_id.is_empty() {
         let resp = Box::pin(callback(
             client.clone(),
-            fedimovie_token.access_token.to_owned(),
+            oauth_token.access_token.to_owned(),
         ))
         .await;
         match resp {
@@ -98,16 +98,12 @@ where
             }
         }
 
-        let resp = token_from_refresh_token(
-            client,
-            fedimovie_oauth_client_local,
-            &fedimovie_token.refresh_token,
-        )
-        .await;
+        let resp =
+            oauth_token_from_refresh_token(client, oauth_client, &oauth_token.refresh_token).await;
         match resp {
             Ok(ok) => {
-                *fedimovie_token = ok;
-                return callback(client.clone(), fedimovie_token.access_token.to_owned()).await;
+                *oauth_token = ok;
+                return callback(client.clone(), oauth_token.access_token.to_owned()).await;
             }
             Err(err) => {
                 if err.status() != Some(StatusCode::UNAUTHORIZED) {
@@ -116,27 +112,21 @@ where
             }
         };
     } else {
-        *fedimovie_oauth_client_local = oauth_client_local(client).await?;
+        *oauth_client = oauth_client_local(client).await?;
     }
 
-    *fedimovie_token = token_from_password(
-        client,
-        fedimovie_oauth_client_local,
-        fedimovie_email,
-        fedimovie_password,
-    )
-    .await?;
-    callback(client.clone(), fedimovie_token.access_token.to_owned()).await
+    *oauth_token = token_from_password(client, oauth_client, email, password).await?;
+    callback(client.clone(), oauth_token.access_token.to_owned()).await
 }
 
-#[derive(Default, Deserialize)]
-pub struct OauthClientLocal {
+#[derive(Default, serde::Deserialize)]
+struct OauthClient {
     client_id: String,
     client_secret: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
-struct Token {
+#[derive(Debug, Default, serde::Deserialize)]
+struct OauthToken {
     // token_type: String,
     access_token: String,
     refresh_token: String,
@@ -148,8 +138,8 @@ pub struct PeerTube {
     client: reqwest::Client,
     email: String,
     password: String,
-    oauth_client_local: OauthClientLocal,
-    token: Token,
+    oauth_client: OauthClient,
+    oauth_token: OauthToken,
 }
 
 impl PeerTube {
@@ -158,8 +148,8 @@ impl PeerTube {
             client: Default::default(),
             email,
             password,
-            oauth_client_local: Default::default(),
-            token: Default::default(),
+            oauth_client: Default::default(),
+            oauth_token: Default::default(),
         }
     }
 
@@ -170,8 +160,8 @@ impl PeerTube {
     {
         auto_refresh(
             &self.client,
-            &mut self.oauth_client_local,
-            &mut self.token,
+            &mut self.oauth_client,
+            &mut self.oauth_token,
             &self.email,
             &self.password,
             callback,
