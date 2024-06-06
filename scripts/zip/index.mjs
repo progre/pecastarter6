@@ -5,7 +5,7 @@ import archiver from 'archiver';
 const json = JSON.parse(
   fs.readFileSync(`./src-tauri/tauri.conf.json`, { encoding: 'utf8' })
 );
-const zipFilename = `${json.package.productName}_${json.package.version}_x64_jp-JP.zip`;
+const zipFilename = `${json.package.productName}_${json.package.version}_x64_ja-JP.zip`;
 const exeFilename = `${json.package.productName}.exe`;
 const pathes = [exeFilename, ...json.tauri.bundle.resources].map((x) => `${x}`);
 
