@@ -112,15 +112,15 @@ impl App {
         }
     }
 
-    pub async fn new(app_dir: &Path, resource_dir: &Path) -> Arc<App> {
-        let zelf = Arc::new(Self::internal_new(app_dir, resource_dir).await);
+    pub async fn new(app_config_dir: &Path, resource_dir: &Path) -> Arc<App> {
+        let zelf = Arc::new(Self::internal_new(app_config_dir, resource_dir).await);
         let app_rtmp_listener_delegate = Arc::new(AppRtmpListenerDelegate::new(
             Arc::downgrade(&zelf),
-            app_dir.to_owned(),
+            app_config_dir.to_owned(),
         ));
         let app_ui_delegate = Arc::new(AppUiDelegate::new(
             Arc::downgrade(&zelf),
-            app_dir.to_owned(),
+            app_config_dir.to_owned(),
         ));
         let app_bbs_listener_delegate =
             Arc::new(AppBbsListenerDelegate::new(Arc::downgrade(&zelf)));

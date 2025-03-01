@@ -10,18 +10,15 @@ use core::{
     app::App,
     utils::{dialog::show_dialog, tcp::find_free_port},
 };
-use std::{path::PathBuf, process::Command};
+use std::process::Command;
 
 use features::{
     terms_check,
     ui::window::{InvokeMessageExt, WindowDelegate, WindowState},
 };
-use tauri::{
-    api::path::{app_config_dir, resource_dir},
-    generate_context, Env, Invoke, Manager,
-};
+use tauri::{generate_context, Invoke, Manager};
 
-fn invoke_handler(Invoke { message, resolver }: Invoke, app_dir: PathBuf) {
+fn invoke_handler(Invoke { message, resolver }: Invoke) {
     tauri::async_runtime::spawn(async move {
         let delegate = message.state_ref().get::<WindowState>().delegate();
         match message.command() {
@@ -57,8 +54,14 @@ fn invoke_handler(Invoke { message, resolver }: Invoke, app_dir: PathBuf) {
                 } else {
                     "explorer.exe"
                 };
+                let app_config_dir = message
+                    .window()
+                    .app_handle()
+                    .path_resolver()
+                    .app_config_dir()
+                    .unwrap();
                 Command::new(cmd)
-                    .arg(app_dir.to_str().unwrap())
+                    .arg(app_config_dir.to_str().unwrap())
                     .output()
                     .unwrap();
             }
@@ -73,25 +76,23 @@ fn main() {
         env_logger::init();
     }
 
-    let context = generate_context!();
-    let app_dir = app_config_dir(context.config()).unwrap();
-    let resource_dir = resource_dir(context.package_info(), &Env::default()).unwrap();
-
-    let app = tauri::async_runtime::block_on(async { App::new(&app_dir, &resource_dir).await });
-    let weak = app.ui.ui_window_delegate_weak();
-
     tauri::Builder::default()
-        .manage(WindowState::new(weak.clone()))
-        .setup({
-            let app = app.clone();
-            move |tauri_app| {
-                *app.ui.window().app_handle().lock().unwrap() = Some(tauri_app.app_handle());
-                weak.upgrade().unwrap().on_build_app();
-                Ok(())
-            }
+        .setup(|tauri_app| {
+            let path_resolver = tauri_app.path_resolver();
+            let app_config_dir = path_resolver.app_config_dir().unwrap();
+            let resource_dir = path_resolver.resource_dir().unwrap();
+            let app = tauri::async_runtime::block_on(async {
+                App::new(&app_config_dir, &resource_dir).await
+            });
+            let weak = app.ui.ui_window_delegate_weak();
+            *app.ui.window().app_handle().lock().unwrap() = Some(tauri_app.app_handle());
+            tauri_app.manage(WindowState::new(app, weak.clone()));
+            weak.upgrade().unwrap().on_build_app();
+
+            Ok(())
         })
-        .invoke_handler(move |invoke| invoke_handler(invoke, app_dir.clone()))
-        .build(context)
+        .invoke_handler(invoke_handler)
+        .run(generate_context!())
         .map_err(|err| {
             const NOTE: &str =
                 "WebView2 ランタイムをインストールするとこのエラーが解決する可能性があります。";
@@ -107,7 +108,5 @@ fn main() {
             ));
             err
         })
-        .expect("error while running tauri application")
-        .run(|_, _| {});
-    drop(app);
+        .expect("error while running tauri application");
 }

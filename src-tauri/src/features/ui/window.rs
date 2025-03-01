@@ -5,10 +5,15 @@ use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use tauri::{AppHandle, InvokeMessage, Manager, UserAttentionType};
 
-use crate::core::entities::{
-    contact_status::ContactStatus,
-    settings::{ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings},
-    yp_config::YPConfig,
+use crate::core::{
+    app::App,
+    entities::{
+        contact_status::ContactStatus,
+        settings::{
+            ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
+        },
+        yp_config::YPConfig,
+    },
 };
 
 /*
@@ -37,12 +42,16 @@ pub trait WindowDelegate {
 type DynSendSyncWindowDelegate = dyn Send + Sync + WindowDelegate;
 
 pub struct WindowState {
+    _app: Arc<App>,
     delegate: Weak<DynSendSyncWindowDelegate>,
 }
 
 impl WindowState {
-    pub fn new(delegate: Weak<DynSendSyncWindowDelegate>) -> Self {
-        Self { delegate }
+    pub fn new(app: Arc<App>, delegate: Weak<DynSendSyncWindowDelegate>) -> Self {
+        Self {
+            _app: app,
+            delegate,
+        }
     }
 
     pub fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
