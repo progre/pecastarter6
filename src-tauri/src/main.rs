@@ -80,8 +80,16 @@ fn main() {
     let app = tauri::async_runtime::block_on(async { App::new(&app_dir, &resource_dir).await });
     let weak = app.ui.ui_window_delegate_weak();
 
-    let tauri_app = tauri::Builder::default()
+    tauri::Builder::default()
         .manage(WindowState::new(weak.clone()))
+        .setup({
+            let app = app.clone();
+            move |tauri_app| {
+                *app.ui.window().app_handle().lock().unwrap() = Some(tauri_app.app_handle());
+                weak.upgrade().unwrap().on_build_app();
+                Ok(())
+            }
+        })
         .invoke_handler(move |invoke| invoke_handler(invoke, app_dir.clone()))
         .build(context)
         .map_err(|err| {
@@ -99,9 +107,7 @@ fn main() {
             ));
             err
         })
-        .expect("error while running tauri application");
-
-    *app.ui.window().app_handle().lock().unwrap() = Some(tauri_app.app_handle());
-    weak.upgrade().unwrap().on_build_app();
-    tauri_app.run(|_, _| {});
+        .expect("error while running tauri application")
+        .run(|_, _| {});
+    drop(app);
 }
