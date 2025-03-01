@@ -70,7 +70,8 @@ fn invoke_handler(Invoke { message, resolver }: Invoke) {
     });
 }
 
-fn main() {
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
     if cfg!(debug_assertions) {
         std::env::set_var("RUST_LOG", "app=trace,reqwest=trace");
         env_logger::init();

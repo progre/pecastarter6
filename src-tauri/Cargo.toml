@@ -8,6 +8,10 @@ default-run = "app"
 edition = "2021"
 rust-version = "1.61"
 
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "1.0.0", features = [] }
 
@@ -39,7 +43,7 @@ tauri = { version = "1.0", features = [
     "notification-all",
     "os-all",
     "shell-open",
-    "window-close"
+    "window-close",
 ] }
 tauri-runtime = "*"
 tokio = { version = "1.19", features = ["macros", "net", "rt", "sync"] }
