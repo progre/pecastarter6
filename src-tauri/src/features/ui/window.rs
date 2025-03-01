@@ -1,29 +1,14 @@
-use std::{
-    path::PathBuf,
-    process::Command,
-    sync::{Arc, Weak},
-};
+use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
-use tauri::{
-    utils::assets::EmbeddedAssets, AppHandle, Context, Invoke, InvokeMessage, Manager,
-    UserAttentionType,
-};
+use tauri::{AppHandle, InvokeMessage, Manager, UserAttentionType};
 
-use crate::{
-    core::{
-        entities::{
-            contact_status::ContactStatus,
-            settings::{
-                ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings,
-            },
-            yp_config::YPConfig,
-        },
-        utils::{dialog::show_dialog, tcp::find_free_port},
-    },
-    features::terms_check,
+use crate::core::entities::{
+    contact_status::ContactStatus,
+    settings::{ChannelSettings, GeneralSettings, OtherSettings, Settings, YellowPagesSettings},
+    yp_config::YPConfig,
 };
 
 /*
@@ -51,18 +36,22 @@ pub trait WindowDelegate {
 
 type DynSendSyncWindowDelegate = dyn Send + Sync + WindowDelegate;
 
-struct WindowState {
+pub struct WindowState {
     delegate: Weak<DynSendSyncWindowDelegate>,
 }
 
 impl WindowState {
-    fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
+    pub fn new(delegate: Weak<DynSendSyncWindowDelegate>) -> Self {
+        Self { delegate }
+    }
+
+    pub fn delegate(&self) -> Arc<DynSendSyncWindowDelegate> {
         self.delegate.upgrade().unwrap()
     }
 }
 
 #[async_trait]
-trait InvokeMessageExt {
+pub trait InvokeMessageExt {
     fn get_from_payload<T>(&self, param: &str) -> Option<T>
     where
         T: DeserializeOwned;
@@ -80,77 +69,6 @@ impl InvokeMessageExt for InvokeMessage {
     }
 }
 
-fn build_app(
-    context: Context<EmbeddedAssets>,
-    app_dir: PathBuf,
-    delegate: Weak<DynSendSyncWindowDelegate>,
-) -> tauri::App {
-    tauri::Builder::default()
-        .manage(WindowState { delegate })
-        .invoke_handler(move |Invoke { message, resolver }| {
-            let app_dir = app_dir.clone();
-            tauri::async_runtime::spawn(async move {
-                let delegate = message.state_ref().get::<WindowState>().delegate();
-                match message.command() {
-                    "initial_data" => {
-                        resolver.resolve(delegate.initial_data().await);
-                    }
-                    "put_settings" => {
-                        if let Some(settings) = message.get_from_payload("generalSettings") {
-                            delegate.on_change_general_settings(settings).await;
-                        }
-                        if let Some(settings) = message.get_from_payload("yellowPagesSettings") {
-                            delegate.on_change_yellow_pages_settings(settings).await;
-                        }
-                        if let Some(settings) = message.get_from_payload("channelSettings") {
-                            delegate.on_change_channel_settings(settings).await;
-                        }
-                        if let Some(settings) = message.get_from_payload("otherSettings") {
-                            delegate.on_change_other_settings(settings).await;
-                        }
-                    }
-                    "fetch_hash" => {
-                        let payload = message.payload();
-                        let url = payload.get("url").unwrap().as_str().unwrap();
-                        let selector = payload.get("selector").and_then(|x| x.as_str());
-                        resolver.resolve(terms_check::fetch_hash(url, selector).await.unwrap());
-                    }
-                    "find_free_port" => {
-                        resolver.resolve(find_free_port().await.unwrap());
-                    }
-                    "open_app_dir" => {
-                        let cmd = if cfg!(target_os = "macos") {
-                            "open"
-                        } else {
-                            "explorer.exe"
-                        };
-                        Command::new(cmd)
-                            .arg(app_dir.to_str().unwrap())
-                            .output()
-                            .unwrap();
-                    }
-                    _ => panic!("unknown command"),
-                }
-            });
-        })
-        .build(context)
-        .map_err(|err| {
-            let mut note = "";
-            if let tauri::Error::Runtime(tauri_runtime::Error::CreateWebview(err)) = &err {
-                if err.to_string().contains("WebView2") {
-                    note = "WebView2 ランタイムをインストールするとこのエラーが解決する可能性があります。"
-                }
-            }
-            show_dialog(&format!(
-                "アプリケーションの起動に失敗しました。{}({}) ",
-                note,
-                err
-            ));
-            err
-        })
-        .expect("error while running tauri application")
-}
-
 pub struct Window {
     app_handle: std::sync::Mutex<Option<AppHandle>>,
 }
@@ -162,18 +80,8 @@ impl Window {
         }
     }
 
-    pub fn run(
-        &self,
-        context: Context<EmbeddedAssets>,
-        app_dir: PathBuf,
-        delegate: Weak<DynSendSyncWindowDelegate>,
-    ) {
-        let app = build_app(context, app_dir, delegate.clone());
-        *self.app_handle.lock().unwrap() = Some(app.app_handle());
-        if let Some(delegate) = delegate.upgrade() {
-            delegate.on_build_app()
-        }
-        app.run(|_, _| {});
+    pub fn app_handle(&self) -> &std::sync::Mutex<Option<AppHandle>> {
+        &self.app_handle
     }
 
     pub fn push_settings(&self, settings: &Settings) {

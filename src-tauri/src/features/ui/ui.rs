@@ -1,12 +1,10 @@
 use std::{
     fmt::Display,
-    path::PathBuf,
     sync::{Arc, Weak},
 };
 
 use async_trait::async_trait;
 use log::{error, warn};
-use tauri::{utils::assets::EmbeddedAssets, Context};
 
 use crate::core::{
     entities::{
@@ -50,7 +48,7 @@ impl Display for Title {
     }
 }
 
-struct UiWindowDelegate {
+pub struct UiWindowDelegate {
     window: Weak<Window>,
     ui_delegate: Weak<DynSendSyncUiDelegate>,
     title: Weak<std::sync::Mutex<Title>>,
@@ -128,10 +126,15 @@ impl Ui {
         }
     }
 
-    pub fn run(
+    pub fn window(&self) -> &Window {
+        &self.window
+    }
+    pub fn ui_window_delegate_weak(&self) -> Weak<UiWindowDelegate> {
+        Arc::downgrade(self.ui_window_delegate.lock().unwrap().as_ref().unwrap())
+    }
+
+    pub fn prepare_ui(
         &self,
-        context: Context<EmbeddedAssets>,
-        app_dir: PathBuf,
         initial_rtmp: String,
         initial_channel_name: String,
         delegate: Weak<DynSendSyncUiDelegate>,
@@ -145,8 +148,6 @@ impl Ui {
             ui_delegate: delegate,
             title: Arc::downgrade(&self.title),
         }));
-        let weak = Arc::downgrade(self.ui_window_delegate.lock().unwrap().as_ref().unwrap());
-        self.window.run(context, app_dir, weak);
     }
 
     pub fn notify_failure(&self, failure: &Failure) {

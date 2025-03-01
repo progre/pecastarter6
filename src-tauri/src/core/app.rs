@@ -1,18 +1,13 @@
 use std::{
     mem::take,
     ops::Deref,
-    path::{Path, PathBuf},
-    sync::Arc,
+    path::Path,
+    sync::{Arc, Weak},
 };
 
 use anyhow::Result;
 use log::warn;
-use tauri::{
-    api::path::{app_config_dir, resource_dir},
-    generate_context,
-    utils::assets::EmbeddedAssets,
-    Context, Env,
-};
+use once_cell::sync::OnceCell;
 use tokio::sync::Mutex;
 
 use crate::{
@@ -46,26 +41,12 @@ use super::{
 
 async fn listen_rtmp_if_need(
     app: &App,
-    app_rtmp_listener_delegate: &Arc<AppRtmpListenerDelegate>,
+    app_rtmp_listener_delegate: Weak<AppRtmpListenerDelegate>,
 ) -> bool {
     let mut rtmp_server = app.rtmp_server.lock().await;
-    let weak = Arc::downgrade(app_rtmp_listener_delegate);
-    rtmp_server.set_delegate(weak);
+    rtmp_server.set_delegate(app_rtmp_listener_delegate);
     app.listen_rtmp_if_need(&mut rtmp_server, app.settings.lock().await.deref())
         .await
-}
-
-async fn run_ui(
-    context: Context<EmbeddedAssets>,
-    app_dir: PathBuf,
-    app: &App,
-    app_ui_delegate: &Arc<AppUiDelegate>,
-    initial_rtmp: String,
-) {
-    let initial_channel_name = app.settings.lock().await.general_settings.channel_name[0].clone();
-    let weak = Arc::downgrade(app_ui_delegate);
-    app.ui
-        .run(context, app_dir, initial_rtmp, initial_channel_name, weak);
 }
 
 fn updated_value_with_history(history: Vec<String>, limit: usize) -> Vec<String> {
@@ -111,10 +92,12 @@ pub struct App {
     pub bbs_listener_container: std::sync::Mutex<BbsListenerContainer>,
     pub logger_controller: LoggerController,
     external_channels: Mutex<Option<ExternalChannels>>,
+    _app_bbs_listener_delegate: OnceCell<Arc<AppBbsListenerDelegate>>,
+    _app_rtmp_listener_delegate: OnceCell<Arc<AppRtmpListenerDelegate>>,
 }
 
 impl App {
-    async fn new(app_dir: &Path, resource_dir: &Path) -> Self {
+    async fn internal_new(app_dir: &Path, resource_dir: &Path) -> Self {
         Self {
             yp_configs: read_yp_configs_and_show_dialog_if_error(app_dir, resource_dir).await,
             settings: Mutex::new(load_settings_and_show_dialog_if_error(app_dir).await),
@@ -124,21 +107,21 @@ impl App {
             bbs_listener_container: std::sync::Mutex::new(BbsListenerContainer::new()),
             logger_controller: LoggerController::new(),
             external_channels: Default::default(),
+            _app_bbs_listener_delegate: OnceCell::new(),
+            _app_rtmp_listener_delegate: OnceCell::new(),
         }
     }
 
-    pub async fn run() {
-        let context = generate_context!();
-
-        let app_dir = app_config_dir(context.config()).unwrap();
-        let resource_dir = resource_dir(context.package_info(), &Env::default()).unwrap();
-
-        let zelf = Arc::new(Self::new(&app_dir, &resource_dir).await);
+    pub async fn new(app_dir: &Path, resource_dir: &Path) -> Arc<App> {
+        let zelf = Arc::new(Self::internal_new(app_dir, resource_dir).await);
         let app_rtmp_listener_delegate = Arc::new(AppRtmpListenerDelegate::new(
             Arc::downgrade(&zelf),
-            app_dir.clone(),
+            app_dir.to_owned(),
         ));
-        let app_ui_delegate = Arc::new(AppUiDelegate::new(Arc::downgrade(&zelf), app_dir.clone()));
+        let app_ui_delegate = Arc::new(AppUiDelegate::new(
+            Arc::downgrade(&zelf),
+            app_dir.to_owned(),
+        ));
         let app_bbs_listener_delegate =
             Arc::new(AppBbsListenerDelegate::new(Arc::downgrade(&zelf)));
 
@@ -149,6 +132,9 @@ impl App {
             bbs_listener_container.set_delegate(weak);
             bbs_listener_container.set_url(url);
         }
+        zelf._app_bbs_listener_delegate
+            .set(app_bbs_listener_delegate)
+            .unwrap_or_else(|_| panic!());
         {
             let app_ui_delegate = app_ui_delegate.clone();
             zelf.logger_controller
@@ -157,11 +143,15 @@ impl App {
                 }));
         }
 
-        let initial_rtmp = if listen_rtmp_if_need(&zelf, &app_rtmp_listener_delegate).await {
+        let weak = Arc::downgrade(&app_rtmp_listener_delegate);
+        let initial_rtmp = if listen_rtmp_if_need(&zelf, weak).await {
             "listening"
         } else {
             "idle"
         };
+        zelf._app_rtmp_listener_delegate
+            .set(app_rtmp_listener_delegate)
+            .unwrap_or_else(|_| panic!());
 
         {
             let settings = zelf.settings.lock().await;
@@ -178,14 +168,13 @@ impl App {
             };
         }
 
-        run_ui(
-            context,
-            app_dir,
-            &zelf,
-            &app_ui_delegate,
-            initial_rtmp.to_owned(),
-        )
-        .await; // long long awaiting
+        let initial_channel_name =
+            zelf.settings.lock().await.general_settings.channel_name[0].clone();
+        let weak = Arc::downgrade(&app_ui_delegate);
+        zelf.ui
+            .prepare_ui(initial_rtmp.to_owned(), initial_channel_name, weak);
+
+        zelf
     }
 
     pub async fn show_check_again_terms_dialog_if_expired(&self, app_dir: &Path) -> bool {
