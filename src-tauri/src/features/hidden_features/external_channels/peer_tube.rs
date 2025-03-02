@@ -71,7 +71,7 @@ async fn oauth_token_from_refresh_token(
         .await
 }
 
-async fn auto_refresh<'a, T, F, G>(
+async fn auto_refresh<T, F, G>(
     client: &reqwest::Client,
     oauth_client: &mut OauthClient,
     oauth_token: &mut OauthToken,
@@ -153,7 +153,7 @@ impl PeerTube {
         }
     }
 
-    async fn auto_refresh<'a, T, F, G>(&mut self, callback: F) -> reqwest::Result<T>
+    async fn auto_refresh<T, F, G>(&mut self, callback: F) -> reqwest::Result<T>
     where
         F: Fn(reqwest::Client, String) -> G,
         G: Future<Output = reqwest::Result<T>>,

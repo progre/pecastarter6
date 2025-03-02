@@ -6,7 +6,6 @@ authors = ["Progre"]
 repository = ""
 default-run = "app"
 edition = "2021"
-rust-version = "1.61"
 
 [lib]
 name = "app_lib"

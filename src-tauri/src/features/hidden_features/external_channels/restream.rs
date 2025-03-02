@@ -56,9 +56,9 @@ impl Restream {
         }
     }
 
-    async fn auto_refresh<'a, T>(
+    async fn auto_refresh<T>(
         &self,
-        oauth_token: &'a mut OauthToken,
+        oauth_token: &mut OauthToken,
         callback: impl Fn(&reqwest::Client, &str) -> T,
     ) -> reqwest::Result<Response>
     where
@@ -77,7 +77,7 @@ impl Restream {
         callback(&self.client, &oauth_token.access_token).await
     }
 
-    pub async fn apply<'a>(
+    pub async fn apply(
         &self,
         access_token: &mut String,
         refresh_token: &mut String,

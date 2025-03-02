@@ -2,16 +2,11 @@ use std::{cmp::max, collections::HashMap, num::NonZeroU16};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
 pub enum PeerCastType {
     PeerCastOriginal,
+    #[default]
     PeerCastStation,
-}
-
-impl Default for PeerCastType {
-    fn default() -> Self {
-        PeerCastType::PeerCastStation
-    }
 }
 
 fn at_least_one_value(list: Vec<String>) -> Vec<String> {

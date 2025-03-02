@@ -15,6 +15,7 @@ import {
   faFolder,
   faFolderOpen,
 } from '@fortawesome/free-regular-svg-icons';
+import { IconProp } from '@fortawesome/fontawesome-svg-core';
 import { loadTheme, createTheme } from '@fluentui/react';
 
 export default function initFluentUI() {
@@ -29,10 +30,10 @@ export default function initFluentUI() {
       chevrondownsmall: <FontAwesomeIcon icon={faChevronDown} />,
       chevronupsmall: <FontAwesomeIcon icon={faChevronUp} />,
       clear: <FontAwesomeIcon icon={faXmark} />,
-      clipboard: <FontAwesomeIcon icon={faClipboard} />,
-      errorbadge: <FontAwesomeIcon icon={faCircleXmark} />,
-      folderopen: <FontAwesomeIcon icon={faFolderOpen} />,
-      folder: <FontAwesomeIcon icon={faFolder} />,
+      clipboard: <FontAwesomeIcon icon={faClipboard as IconProp} />,
+      errorbadge: <FontAwesomeIcon icon={faCircleXmark as IconProp} />,
+      folderopen: <FontAwesomeIcon icon={faFolderOpen as IconProp} />,
+      folder: <FontAwesomeIcon icon={faFolder as IconProp} />,
       info: <FontAwesomeIcon icon={faCircleInfo} />,
       search: <FontAwesomeIcon icon={faSearch} />,
       warning: <FontAwesomeIcon icon={faWarning} />,

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import Settings from './entities/Settings';
 import YPConfig from './entities/YPConfig';
 import initFluentUI from './utils/initFluentUI';
@@ -16,7 +16,9 @@ async function main() {
     'initial_data'
   )) as any;
 
-  ReactDOM.render(
+  const container = document.getElementById('root');
+  const root = createRoot(container!);
+  root.render(
     <React.StrictMode>
       <App
         ypConfigs={ypConfigs as readonly YPConfig[]}
@@ -24,7 +26,6 @@ async function main() {
         contactStatus={contactStatus}
       />
     </React.StrictMode>,
-    document.getElementById('root')
   );
 }
 

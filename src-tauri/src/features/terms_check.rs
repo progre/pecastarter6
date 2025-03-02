@@ -61,7 +61,7 @@ async fn expired_yp_terms<'a>(
     Ok(updated_terms)
 }
 
-pub async fn check_expired_terms<'a>(
+pub async fn check_expired_terms(
     yp_configs: &[YPConfig],
     settings: &mut Settings,
 ) -> anyhow::Result<bool> {
