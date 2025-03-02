@@ -17,9 +17,8 @@ use features::{
     ui::window::{InvokeMessageExt, WindowDelegate, WindowState},
 };
 use tauri::{
-    generate_context,
+    Manager, generate_context,
     ipc::{Invoke, InvokeBody},
-    Manager,
 };
 
 fn invoke_handler(
@@ -86,7 +85,7 @@ fn invoke_handler(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if cfg!(debug_assertions) {
-        std::env::set_var("RUST_LOG", "app=trace,reqwest=trace");
+        unsafe { std::env::set_var("RUST_LOG", "app=trace,reqwest=trace") };
         env_logger::init();
     }
 

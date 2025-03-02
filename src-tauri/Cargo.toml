@@ -5,7 +5,7 @@ description = ""
 authors = ["Progre"]
 repository = ""
 default-run = "app"
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "app_lib"
