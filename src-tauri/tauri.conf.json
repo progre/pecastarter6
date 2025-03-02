@@ -1,69 +1,15 @@
 {
-  "package": {
-    "productName": "PeCa Starter",
-    "version": "6.12.1"
-  },
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PeCa Starter",
+  "version": "6.12.1",
+  "identifier": "net.prgrssv.pecastarter",
   "build": {
-    "distDir": "../dist",
-    "devPath": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
   },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "net.prgrssv.pecastarter",
-      "icon": ["icons/icon.ico"],
-      "resources": ["yp/"],
-      "externalBin": [],
-      "copyright": "Progre",
-      "category": null,
-      "shortDescription": "",
-      "longDescription": "",
-      "deb": {
-        "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "license": "../LICENSE",
-        "minimumSystemVersion": "",
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "providerShortName": null,
-        "entitlements": null
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": "",
-        "wix": {
-          "language": "ja-JP",
-          "license": "../LICENSE"
-        }
-      }
-    },
-    "updater": {
-      "active": false
-    },
-    "allowlist": {
-      "dialog": {
-        "confirm": true,
-        "open": true
-      },
-      "notification": {
-        "all": true
-      },
-      "os": {
-        "all": true
-      },
-      "shell": {
-        "open": true
-      },
-      "window": {
-        "close": true
-      }
-    },
+  "app": {
     "windows": [
       {
         "label": "main",
@@ -73,11 +19,46 @@
         "minWidth": 320,
         "minHeight": 240,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "useHttpsScheme": true
       }
     ],
     "security": {
       "csp": null
     }
-  }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": {
+        "language": "ja-JP"
+      }
+    },
+    "resources": ["yp/"],
+    "externalBin": [],
+    "copyright": "Progre",
+    "category": null,
+    "shortDescription": "",
+    "longDescription": "",
+    "macOS": {
+      "frameworks": [],
+      "entitlements": null,
+      "minimumSystemVersion": "",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "providerShortName": null
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "licenseFile": "../LICENSE"
+  },
+  "mainBinaryName": "PeCa Starter"
 }

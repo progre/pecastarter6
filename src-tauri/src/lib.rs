@@ -16,9 +16,19 @@ use features::{
     terms_check,
     ui::window::{InvokeMessageExt, WindowDelegate, WindowState},
 };
-use tauri::{generate_context, Invoke, Manager};
+use tauri::{
+    generate_context,
+    ipc::{Invoke, InvokeBody},
+    Manager,
+};
 
-fn invoke_handler(Invoke { message, resolver }: Invoke) {
+fn invoke_handler(
+    Invoke {
+        message,
+        resolver,
+        acl: _,
+    }: Invoke,
+) -> bool {
     tauri::async_runtime::spawn(async move {
         let delegate = message.state_ref().get::<WindowState>().delegate();
         match message.command() {
@@ -40,7 +50,9 @@ fn invoke_handler(Invoke { message, resolver }: Invoke) {
                 }
             }
             "fetch_hash" => {
-                let payload = message.payload();
+                let InvokeBody::Json(payload) = message.payload() else {
+                    unreachable!();
+                };
                 let url = payload.get("url").unwrap().as_str().unwrap();
                 let selector = payload.get("selector").and_then(|x| x.as_str());
                 resolver.resolve(terms_check::fetch_hash(url, selector).await.unwrap());
@@ -55,9 +67,9 @@ fn invoke_handler(Invoke { message, resolver }: Invoke) {
                     "explorer.exe"
                 };
                 let app_config_dir = message
-                    .window()
+                    .webview_ref()
                     .app_handle()
-                    .path_resolver()
+                    .path()
                     .app_config_dir()
                     .unwrap();
                 Command::new(cmd)
@@ -68,6 +80,7 @@ fn invoke_handler(Invoke { message, resolver }: Invoke) {
             _ => panic!("unknown command"),
         }
     });
+    true
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -78,15 +91,19 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|tauri_app| {
-            let path_resolver = tauri_app.path_resolver();
+            let path_resolver = tauri_app.path();
             let app_config_dir = path_resolver.app_config_dir().unwrap();
             let resource_dir = path_resolver.resource_dir().unwrap();
             let app = tauri::async_runtime::block_on(async {
                 App::new(&app_config_dir, &resource_dir).await
             });
             let weak = app.ui.ui_window_delegate_weak();
-            *app.ui.window().app_handle().lock().unwrap() = Some(tauri_app.app_handle());
+            *app.ui.window().app_handle().lock().unwrap() = Some(tauri_app.handle().to_owned());
             tauri_app.manage(WindowState::new(app, weak.clone()));
             weak.upgrade().unwrap().on_build_app();
 

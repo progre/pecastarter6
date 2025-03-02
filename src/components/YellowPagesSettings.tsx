@@ -1,6 +1,6 @@
 import { css } from '@emotion/react';
-import { invoke } from '@tauri-apps/api';
-import { open } from '@tauri-apps/api/shell';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-shell';
 import {
   EachYellowPagesSettings,
   YellowPagesSettings as Settings,

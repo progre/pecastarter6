@@ -11,7 +11,7 @@ import {
   TooltipHost,
   TooltipOverflowMode,
 } from '@fluentui/react';
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
 import { useRef, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
 import HistoryTextField from './molecules/HistoryTextField';
@@ -133,11 +133,10 @@ export default function GeneralSettings(props: {
   settings: Settings;
   onChange(value: Settings): void;
 }) {
-  const serverForObs = `rtmp://localhost${
-    props.settings.rtmpListenPort === 1935
+  const serverForObs = `rtmp://localhost${props.settings.rtmpListenPort === 1935
       ? ''
       : `:${props.settings.rtmpListenPort}`
-  }/live/livestream`;
+    }/live/livestream`;
 
   return (
     <div

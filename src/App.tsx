@@ -1,7 +1,7 @@
-import { app, invoke, os } from '@tauri-apps/api';
+import { app } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
 import { Event, listen } from '@tauri-apps/api/event';
-import { appWindow } from '@tauri-apps/api/window';
-import { confirm } from '@tauri-apps/api/dialog';
+import * as os from "@tauri-apps/plugin-os"
 import { useEffect, useState } from 'react';
 import Notification from './components/molecules/Notification';
 import TabContainer, { TabContent } from './components/molecules/TabContainer';
@@ -35,8 +35,8 @@ function initialTab(ypConfigs: readonly YPConfig[], defaultSettings: Settings) {
   return doneGeneral && doneYP
     ? 'チャンネル情報'
     : doneGeneral
-    ? 'YP 設定'
-    : '基本設定';
+      ? 'YP 設定'
+      : '基本設定';
 }
 
 export default function App(props: {
@@ -90,21 +90,9 @@ export default function App(props: {
     const statusPromise = listen('status', (ev: Event<Status>) => {
       setStatus(ev.payload);
     });
-    const closeRequestedPromise = appWindow.listen(
-      'tauri://close-requested',
-      async () => {
-        if (
-          status.rtmp !== 'streaming' ||
-          (await confirm('アプリを終了するとエンコードが停止します。'))
-        ) {
-          // HACK: 閉じる前に onBlur を処理
-          document
-            .querySelector<HTMLButtonElement>('button[role="tab"]')!!
-            .focus();
-          appWindow.close();
-        }
-      }
-    );
+
+    // TODO: 配信中に終了しようとした時に確認ダイアログを出す
+    // TODO: パラメーターの編集中に終了した時に内容を保存する
 
     (async () => {
       const platform = await os.platform();
@@ -118,7 +106,6 @@ export default function App(props: {
       pushContactStatusPromise.then((unlistenFn) => unlistenFn());
       pushSettingsPromise.then((unlistenFn) => unlistenFn());
       statusPromise.then((unlistenFn) => unlistenFn());
-      closeRequestedPromise.then((unlistenFn) => unlistenFn());
     };
   }, []);
 

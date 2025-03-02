@@ -3,7 +3,10 @@ use std::sync::{Arc, Weak};
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
-use tauri::{AppHandle, InvokeMessage, Manager, UserAttentionType};
+use tauri::{
+    ipc::{InvokeBody, InvokeMessage},
+    AppHandle, Emitter, Manager, UserAttentionType,
+};
 
 use crate::core::{
     app::App,
@@ -72,8 +75,10 @@ impl InvokeMessageExt for InvokeMessage {
     where
         T: DeserializeOwned,
     {
-        self.payload()
-            .get(param)
+        let InvokeBody::Json(json) = self.payload() else {
+            unreachable!();
+        };
+        json.get(param)
             .map(|x| serde_json::from_value(x.clone()).unwrap())
     }
 }
@@ -113,7 +118,7 @@ impl Window {
         if let Some(attention) = attention {
             if let Some(app_handle) = self.app_handle.lock().unwrap().as_ref() {
                 app_handle
-                    .get_window("main")
+                    .get_webview_window("main")
                     .unwrap()
                     .request_user_attention(Some(attention))
                     .unwrap();
@@ -135,7 +140,7 @@ impl Window {
     pub fn set_title_status(&self, title_status: String) {
         if let Some(app_handle) = self.app_handle.lock().unwrap().as_ref() {
             app_handle
-                .get_window("main")
+                .get_webview_window("main")
                 .unwrap()
                 .set_title(&format!(
                     "{} {}",
@@ -148,7 +153,7 @@ impl Window {
 
     fn send(&self, event: &str, payload: Value) {
         if let Some(app_handle) = self.app_handle.lock().unwrap().as_ref() {
-            app_handle.emit_all(event, payload).unwrap();
+            app_handle.emit(event, payload).unwrap();
         }
     }
 }

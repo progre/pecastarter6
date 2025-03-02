@@ -13,7 +13,7 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "1.0.0", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
 actix-web = "4.4"
@@ -37,15 +37,12 @@ serde_json = "1.0"
 serde-xml-rs = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10"
-tauri = { version = "1.0", features = [
-    "dialog-confirm",
-    "dialog-open",
-    "notification-all",
-    "os-all",
-    "shell-open",
-    "window-close",
-] }
-tauri-runtime = "*"
+tauri = { version = "2", features = [] }
+tauri-plugin-notification = "2"
+tauri-plugin-os = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-runtime = "2"
 tokio = { version = "1.19", features = ["macros", "net", "rt", "sync"] }
 tokio-stream = "0.1"
 versions = "6.2"

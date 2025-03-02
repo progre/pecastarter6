@@ -1,6 +1,7 @@
 import { css } from '@emotion/react';
 import { Checkbox, DefaultButton, TextField } from '@fluentui/react';
-import { dialog, invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
+import * as dialog from "@tauri-apps/plugin-dialog"
 import { useState } from 'react';
 import { LiteralUnion } from 'type-fest';
 import { OtherSettings as Settings } from '../entities/Settings';
@@ -58,10 +59,10 @@ export default function OtherSettings(props: {
             fieldGroup: hideOpenDirectoryDialog
               ? {}
               : {
-                  borderRight: 'none',
-                  borderTopRightRadius: 0,
-                  borderBottomRightRadius: 0,
-                },
+                borderRight: 'none',
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+              },
           }}
           label="ログの出力先"
           disabled={!props.settings.logEnabled}
