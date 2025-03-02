@@ -5,9 +5,9 @@ import archiver from 'archiver';
 const json = JSON.parse(
   fs.readFileSync(`./src-tauri/tauri.conf.json`, { encoding: 'utf8' })
 );
-const zipFilename = `${json.package.productName}_${json.package.version}_x64_ja-JP.zip`;
-const exeFilename = `${json.package.productName}.exe`;
-const pathes = [exeFilename, ...json.tauri.bundle.resources].map((x) => `${x}`);
+const zipFilename = `${json.productName}_${json.version}_x64_ja-JP.zip`;
+const exeFilename = `${json.productName}.exe`;
+const pathes = [exeFilename, ...json.bundle.resources].map((x) => `${x}`);
 
 const archive = archiver('zip', { zlib: { level: 9 } });
 archive.pipe(fs.createWriteStream(zipFilename));
