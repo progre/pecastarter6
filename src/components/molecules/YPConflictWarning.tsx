@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 
 export default function YPConflictWarning(): JSX.Element {
   return (
     <span
-      css={css`
+      className={css`
         background-color: white;
         border: 1px solid gray;
         padding: 4px;
@@ -15,7 +15,7 @@ export default function YPConflictWarning(): JSX.Element {
     >
       IPv4 と同じ YP を指定すると
       <span
-        css={css`
+        className={css`
           white-space: nowrap;
         `}
       >

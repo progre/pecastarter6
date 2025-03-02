@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { Pivot, PivotItem } from '@fluentui/react';
 import { ReactNode } from 'react';
 
@@ -27,14 +27,14 @@ export default function TabContainer(props: {
   return (
     <Pivot
       defaultSelectedKey={props.initialTab}
-      css={css`
+      className={css`
         user-select: none;
       `}
     >
       {children?.map((x, i) => (
         <PivotItem key={i} itemKey={x.props.label} headerText={x.props.label}>
           <div
-            css={css`
+            className={css`
               margin: 16px 8px 8px;
             `}
           >

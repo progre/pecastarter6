@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { MessageBar, MessageBarType } from '@fluentui/react';
 
 export default function Notification(props: {
@@ -9,7 +9,7 @@ export default function Notification(props: {
 }) {
   return (
     <div
-      css={css`
+      className={css`
         position: absolute;
         bottom: 0;
         user-select: none;

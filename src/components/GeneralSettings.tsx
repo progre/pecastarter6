@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import {
   DefaultButton,
   IRefObject,
@@ -16,19 +16,17 @@ import { useRef, useState } from 'react';
 import { GeneralSettings as Settings } from '../entities/Settings';
 import HistoryTextField from './molecules/HistoryTextField';
 
-type State = Settings & { workingChannelName: string };
-
 function CopyableTextField(props: ITextFieldProps) {
   const ref = useRef<ITooltipHost>();
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         align-items: end;
       `}
     >
       <TextField
-        css={css`
+        className={css`
           flex-grow: 1;
 
           > div > div > input {
@@ -52,7 +50,7 @@ function CopyableTextField(props: ITextFieldProps) {
         componentRef={ref as IRefObject<ITooltipHost>}
       >
         <DefaultButton
-          css={css`
+          className={css`
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
           `}
@@ -75,7 +73,7 @@ function PeerCastRtmpTcpPort(props: {
   const [value, setValue] = useState(props.value);
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         align-items: end;
       `}
@@ -84,7 +82,7 @@ function PeerCastRtmpTcpPort(props: {
         label="RTMP TCP ポート番号 (0 で自動)"
         style={{ width: 0 }}
         styles={{ input: { textAlign: 'end', textOverflow: 'clip' } }}
-        css={css`
+        className={css`
           z-index: 1;
           width: auto;
           > div:nth-of-type(2)::after {
@@ -101,7 +99,7 @@ function PeerCastRtmpTcpPort(props: {
         }}
       />
       <DefaultButton
-        css={css`
+        className={css`
           border-left: none;
           border-top-left-radius: 0;
           border-bottom-left-radius: 0;
@@ -114,7 +112,7 @@ function PeerCastRtmpTcpPort(props: {
               key: 'emailMessage',
               text: '空きポートを探す',
               onClick: () => {
-                (async (ev, item) => {
+                (async (_ev, _item) => {
                   const newValue: number = await invoke('find_free_port');
                   setValue(newValue);
                   props.onChange(newValue);
@@ -134,13 +132,13 @@ export default function GeneralSettings(props: {
   onChange(value: Settings): void;
 }) {
   const serverForObs = `rtmp://localhost${props.settings.rtmpListenPort === 1935
-      ? ''
-      : `:${props.settings.rtmpListenPort}`
+    ? ''
+    : `:${props.settings.rtmpListenPort}`
     }/live/livestream`;
 
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -163,7 +161,7 @@ export default function GeneralSettings(props: {
       />
       <SpinButton
         label="RTMP 待ち受け TCP ポート番号"
-        css={css`
+        className={css`
           margin-top: 24px;
         `}
         style={{ width: 0 }}

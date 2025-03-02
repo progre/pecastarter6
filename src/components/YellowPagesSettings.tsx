@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
 import {
@@ -31,7 +31,7 @@ function EachYellowPagesSettingsView(props: {
     props.readedTerms[currentYPConfig?.termsURL ?? ''] ?? null;
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         flex: 1;
         flex-wrap: wrap;
@@ -41,7 +41,7 @@ function EachYellowPagesSettingsView(props: {
       `}
     >
       <div
-        css={css`
+        className={css`
           color: ${!conflict ? 'inherit' : '#ff2800'};
         `}
       >
@@ -79,7 +79,7 @@ function EachYellowPagesSettingsView(props: {
       />
       {!(currentYPConfig?.ignoreTermsCheck === true) ? null : (
         <div
-          css={css`
+          className={css`
             font-size: x-small;
             padding: 4px;
             margin-top: -8px;
@@ -91,7 +91,7 @@ function EachYellowPagesSettingsView(props: {
         </div>
       )}
       <div
-        css={css`
+        className={css`
           margin-top: 20px;
         `}
       >
@@ -118,7 +118,7 @@ export default function YellowPagesSettings(props: {
 
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         gap: 64px 16px;
         flex-wrap: wrap;

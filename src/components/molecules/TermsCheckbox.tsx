@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { Checkbox } from '@fluentui/react';
 
 export default function TermsCheckbox(props: {
@@ -12,7 +12,7 @@ export default function TermsCheckbox(props: {
     <Checkbox
       onRenderLabel={() => (
         <div
-          css={css`
+          className={css`
             margin-left: 4px;
           `}
         >

@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { DefaultButton, Separator } from '@fluentui/react';
 
 export default function ShowMore(props: {
@@ -7,19 +7,19 @@ export default function ShowMore(props: {
 }): JSX.Element {
   return (
     <div
-      css={css`
+      className={css`
         ${props.hidden ? 'display: none;' : 'display: flex;'}
         flex-direction: column;
       `}
     >
       <Separator
-        css={css`
+        className={css`
           margin: 0 8px 1px;
           height: 8px;
         `}
       />
       <DefaultButton
-        css={css`
+        className={css`
           height: 36px;
           border: none;
           padding: 0 4px;

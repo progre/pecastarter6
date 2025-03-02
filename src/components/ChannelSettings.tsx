@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import {
   DefaultButton,
   Dropdown,
@@ -27,7 +27,7 @@ function History(props: {
   const [extended, setExtended] = useState(false);
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
       `}
     >
@@ -35,7 +35,7 @@ function History(props: {
         componentRef={componentRef}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        css={css`
+        className={css`
           flex-grow: 1;
           opacity: 0;
           pointer-events: none;
@@ -63,7 +63,7 @@ function History(props: {
         onChange={(_e, option, _i) => props.onChange(option!!.data!!)}
       />
       <DefaultButton
-        css={css`
+        className={css`
           min-width: 32px;
           padding-left: 0;
           padding-right: 0;
@@ -87,12 +87,12 @@ function ChannelContentView(props: {
 }): JSX.Element {
   return (
     <div
-      css={css`
+      className={css`
         position: relative;
       `}
     >
       <div
-        css={css`
+        className={css`
           width: 100%;
           position: absolute;
           margin-top: 26px;
@@ -111,7 +111,7 @@ function ChannelContentView(props: {
         />
       </div>
       <div
-        css={css`
+        className={css`
           margin-right: 32px;
           padding-right: 8px;
           display: flex;
@@ -125,7 +125,7 @@ function ChannelContentView(props: {
           onChange={(_e, genre) => props.onChange({ genre })}
         />
         <TextField
-          css={css`
+          className={css`
             flex-grow: 1;
           `}
           label="概要"
@@ -149,7 +149,7 @@ export default function ChannelSettings(props: {
 
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -185,7 +185,7 @@ export default function ChannelSettings(props: {
         }}
       />
       <div
-        css={css`
+        className={css`
           margin-top: 24px;
           display: flex;
           flex-direction: column;
@@ -221,7 +221,7 @@ export default function ChannelSettings(props: {
             }
           />
           <div
-            css={css`
+            className={css`
               width: 100%;
               display: ${props.contactStatus.title === '' ? 'none' : 'flex'};
               margin-top: 1ex;
@@ -233,7 +233,7 @@ export default function ChannelSettings(props: {
               </a>
             </Text>
             <Text
-              css={css`
+              className={css`
                 margin-left: 0.25em;
                 ${props.contactStatus.resCount === 0 ? 'display: none' : ''}
               `}

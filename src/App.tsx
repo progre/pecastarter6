@@ -52,7 +52,7 @@ export default function App(props: {
   >([]);
   const [settings, setSettings] = useState(props.defaultSettings);
   const [contactStatus, setContactStatus] = useState(props.contactStatus);
-  const [status, setStatus] = useState(initialStatus);
+  const [_status, setStatus] = useState(initialStatus);
   const [platform, setPlatform] = useState('');
   const [version, setVersion] = useState('');
 

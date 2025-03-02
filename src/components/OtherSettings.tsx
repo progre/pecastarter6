@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { Checkbox, DefaultButton, TextField } from '@fluentui/react';
 import { invoke } from '@tauri-apps/api/core';
 import * as dialog from "@tauri-apps/plugin-dialog"
@@ -32,7 +32,7 @@ export default function OtherSettings(props: {
 
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -46,13 +46,13 @@ export default function OtherSettings(props: {
         }
       />
       <div
-        css={css`
+        className={css`
           display: flex;
           align-items: end;
         `}
       >
         <TextField
-          css={css`
+          className={css`
             flex-grow: 1;
           `}
           styles={{
@@ -76,7 +76,7 @@ export default function OtherSettings(props: {
           }}
         />
         <DefaultButton
-          css={css`
+          className={css`
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
             min-width: 0;
@@ -104,7 +104,7 @@ export default function OtherSettings(props: {
         />
       </div>
       <div
-        css={css`
+        className={css`
           margin-top: 4ex;
         `}
       >
@@ -118,7 +118,7 @@ export default function OtherSettings(props: {
         </DefaultButton>
       </div>
       <div
-        css={css`
+        className={css`
           margin-top: 4ex;
         `}
       >

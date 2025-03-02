@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { ComboBox } from '@fluentui/react';
 import { useRef, useState } from 'react';
 import ShowMore from './ShowMore';
@@ -46,9 +46,9 @@ export default function HistoryTextField(props: {
       onRenderItem={(props, defaultRender) => (
         <div
           key={props?.key}
-          css={
+          className={
             props?.key !== value
-              ? null
+              ? ""
               : css`
                   > button,
                   > button:hover {

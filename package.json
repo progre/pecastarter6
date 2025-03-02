@@ -2,6 +2,7 @@
   "name": "pecastarter",
   "version": "1.0.0",
   "dependencies": {
+    "@emotion/css": "^11.13.5",
     "@emotion/react": "^11.8.1",
     "@emotion/styled": "^11.8.1",
     "@fluentui/react": "^8.99.0",

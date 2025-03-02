@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { Checkbox, Dropdown, ResponsiveMode, TextField } from '@fluentui/react';
 import YPConfig, { YPConfigParams } from '../../entities/YPConfig';
 
@@ -11,7 +11,7 @@ export default function YellowPagesPrefixBuilder(props: {
 
   return (
     <div
-      css={css`
+      className={css`
         display: flex;
         flex-direction: column;
         gap: 8px;

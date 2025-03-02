@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { css } from '@emotion/css';
 import { Dropdown, ResponsiveMode } from '@fluentui/react';
 import YPConfig from '../../entities/YPConfig';
 
@@ -12,7 +12,7 @@ export default function YPSelect(props: {
 }): JSX.Element {
   return (
     <Dropdown
-      css={css`
+      className={css`
         display: flex;
         align-items: center;
         > div {
@@ -24,7 +24,7 @@ export default function YPSelect(props: {
       responsiveMode={ResponsiveMode.large}
       onRenderTitle={(innerProps, defaultRender) => (
         <div
-          css={css`
+          className={css`
             color: ${!props.conflict ? 'inherit' : '#ff2800'};
           `}
         >
@@ -34,11 +34,11 @@ export default function YPSelect(props: {
       onRenderItem={(item, defaultRender) => (
         <div
           key={item!!.key}
-          css={css`
+          className={css`
             button {
               color: ${item!!.data.host !== props.usedHostForIPV4
-                ? 'initial'
-                : '#ff2800'};
+              ? 'initial'
+              : '#ff2800'};
             }
           `}
         >
