@@ -30,10 +30,6 @@ impl RtmpListener {
         self.delegate = Some(delegate);
     }
 
-    pub fn port(&self) -> Option<NonZeroU16> {
-        self.port
-    }
-
     pub fn stop_listener(&mut self) {
         if let Some(listener_handle) = &self.listener_handle {
             listener_handle.abort();
@@ -42,7 +38,7 @@ impl RtmpListener {
         }
     }
 
-    pub async fn spawn_listener(&mut self, rtmp_listen_port: NonZeroU16) -> anyhow::Result<()> {
+    async fn spawn_listener(&mut self, rtmp_listen_port: NonZeroU16) -> anyhow::Result<()> {
         assert!(self.listener_handle.is_none());
         let delegate = self.delegate.clone().unwrap();
         let rtmp_listen_host = format!("0.0.0.0:{}", rtmp_listen_port);
@@ -61,5 +57,13 @@ impl RtmpListener {
             }
         }));
         Ok(())
+    }
+
+    pub async fn update_listen_port(&mut self, listen_port: NonZeroU16) -> anyhow::Result<()> {
+        if self.port == Some(listen_port) {
+            return Ok(());
+        }
+        self.stop_listener();
+        self.spawn_listener(listen_port).await
     }
 }

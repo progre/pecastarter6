@@ -2,7 +2,7 @@ use std::sync::Weak;
 
 use crate::core::entities::{settings::Settings, yp_config::YPConfig};
 
-use super::{rtmp_listener::RtmpListener, RtmpListenerDelegate};
+use super::{RtmpListenerDelegate, rtmp_listener::RtmpListener};
 
 pub struct RtmpServer {
     rtmp_listener: RtmpListener,
@@ -42,21 +42,11 @@ impl RtmpServer {
 
         let should_listen = has_yp && agreed_all_terms;
         if should_listen {
-            let equals_running_port =
-                self.rtmp_listener.port() == Some(settings.general_settings.rtmp_listen_port);
-            if equals_running_port {
-                return Ok(true);
-            }
-            self.rtmp_listener.stop_listener();
             self.rtmp_listener
-                .spawn_listener(settings.general_settings.rtmp_listen_port)
+                .update_listen_port(settings.general_settings.rtmp_listen_port)
                 .await?;
             Ok(true)
         } else {
-            let running = self.rtmp_listener.port().is_some();
-            if !running {
-                return Ok(false);
-            }
             self.rtmp_listener.stop_listener();
             Ok(false)
         }
