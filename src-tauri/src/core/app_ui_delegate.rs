@@ -99,15 +99,14 @@ impl UiDelegate for AppUiDelegate {
             channel_settings,
             ..
         } = &mut settings as &mut Settings;
-        if let Some(hidden) = &mut other_settings.hidden {
-            if let Err(err) = self
+        if let Some(hidden) = &mut other_settings.hidden
+            && let Err(err) = self
                 .app()
                 .apply_channel_settings_to_external_channels(hidden, channel_settings)
                 .await
-            {
-                let failure = Failure::Warn(err.to_string());
-                app.ui.notify_failure(&failure);
-            }
+        {
+            let failure = Failure::Warn(err.to_string());
+            app.ui.notify_failure(&failure);
         }
 
         let broadcasting = app.broadcasting.lock().await;

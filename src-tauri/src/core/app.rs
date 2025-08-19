@@ -155,16 +155,16 @@ impl App {
 
         {
             let settings = zelf.settings.lock().await;
-            if let Some(hidden) = &settings.other_settings.hidden {
-                if let Some(stream_redirect_port) = hidden.stream_redirect_port {
-                    StreamRedirect::default()
-                        .run(
-                            stream_redirect_port,
-                            settings.general_settings.peer_cast_port,
-                            settings.general_settings.channel_name[0].clone(),
-                        )
-                        .await;
-                }
+            if let Some(hidden) = &settings.other_settings.hidden
+                && let Some(stream_redirect_port) = hidden.stream_redirect_port
+            {
+                StreamRedirect::default()
+                    .run(
+                        stream_redirect_port,
+                        settings.general_settings.peer_cast_port,
+                        settings.general_settings.channel_name[0].clone(),
+                    )
+                    .await;
             };
         }
 

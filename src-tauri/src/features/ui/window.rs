@@ -2,10 +2,10 @@ use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tauri::{
-    ipc::{InvokeBody, InvokeMessage},
     AppHandle, Emitter, Manager, UserAttentionType,
+    ipc::{InvokeBody, InvokeMessage},
 };
 
 use crate::core::{
@@ -115,14 +115,14 @@ impl Window {
             "error" => Some(UserAttentionType::Informational),
             _ => None,
         };
-        if let Some(attention) = attention {
-            if let Some(app_handle) = self.app_handle.lock().unwrap().as_ref() {
-                app_handle
-                    .get_webview_window("main")
-                    .unwrap()
-                    .request_user_attention(Some(attention))
-                    .unwrap();
-            }
+        if let Some(attention) = attention
+            && let Some(app_handle) = self.app_handle.lock().unwrap().as_ref()
+        {
+            app_handle
+                .get_webview_window("main")
+                .unwrap()
+                .request_user_attention(Some(attention))
+                .unwrap();
         }
         self.send(
             "notify",

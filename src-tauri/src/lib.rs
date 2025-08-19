@@ -114,10 +114,10 @@ pub fn run() {
             const NOTE: &str =
                 "WebView2 ランタイムをインストールするとこのエラーが解決する可能性があります。";
             let mut note = "";
-            if let tauri::Error::Runtime(tauri_runtime::Error::CreateWebview(err)) = &err {
-                if err.to_string().contains("WebView2") {
-                    note = NOTE;
-                }
+            if let tauri::Error::Runtime(tauri_runtime::Error::CreateWebview(err)) = &err
+                && err.to_string().contains("WebView2")
+            {
+                note = NOTE;
             }
             show_dialog(&format!(
                 "アプリケーションの起動に失敗しました。{}({}) ",

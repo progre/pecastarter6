@@ -1,7 +1,7 @@
 use std::{io::ErrorKind, path::Path, process::exit};
 
 use log::error;
-use tokio::fs::{create_dir, read_to_string, rename, write, OpenOptions};
+use tokio::fs::{OpenOptions, create_dir, read_to_string, rename, write};
 
 use crate::core::{
     entities::settings::{Settings, StoredSettings, StoringSettings},
@@ -84,10 +84,10 @@ pub async fn load_settings_and_show_dialog_if_error(app_dir: &Path) -> Settings 
 }
 
 pub async fn save_settings_and_show_dialog_if_error(app_dir: &Path, settings: &Settings) {
-    if let Err(err) = create_dir(app_dir).await {
-        if err.kind() != ErrorKind::AlreadyExists {
-            panic!("{:?}", err);
-        }
+    if let Err(err) = create_dir(app_dir).await
+        && err.kind() != ErrorKind::AlreadyExists
+    {
+        panic!("{:?}", err);
     }
     let opt = write(
         app_dir.join("settings.json"),
