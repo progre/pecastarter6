@@ -82,6 +82,19 @@ async fn stop_channel(
     broadcasting.lock().await.stop(peer_cast_port).await
 }
 
+fn jpnkn_bbs_auto_comment(settings: &Settings, app: &Arc<App>) -> Option<JpnknBbsAutoComment> {
+    if settings
+        .other_settings
+        .hidden
+        .as_ref()
+        .is_some_and(|x| x.jpnkn_bbs_auto_comment)
+    {
+        Some(JpnknBbsAutoComment::new(app.clone()))
+    } else {
+        None
+    }
+}
+
 #[async_trait]
 impl RtmpListenerDelegate for AppRtmpListenerDelegate {
     async fn on_connect(&self, incoming: TcpStream) {
@@ -95,23 +108,12 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
 
         let (result, mut jpnkn_bbs_auto_comment) = {
             let settings = app.settings.lock().await;
-            let mut jpnkn_bbs_auto_comment = if settings
-                .other_settings
-                .hidden
-                .as_ref()
-                .map(|x| x.jpnkn_bbs_auto_comment)
-                .unwrap_or_default()
-            {
-                Some(JpnknBbsAutoComment::new(app.clone()))
-            } else {
-                None
-            };
-            let lc = &app.logger_controller;
+            let mut jpnkn_bbs_auto_comment = jpnkn_bbs_auto_comment(&settings, &app);
             let result = start_channel(
                 &app.broadcasting,
                 &app.yp_configs,
                 &settings,
-                lc,
+                &app.logger_controller,
                 jpnkn_bbs_auto_comment.as_mut(),
             )
             .await;
