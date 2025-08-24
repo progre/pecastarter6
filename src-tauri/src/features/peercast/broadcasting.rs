@@ -1,4 +1,4 @@
-use std::num::NonZeroU16;
+use std::num::{NonZero, NonZeroU16};
 
 use getset::Getters;
 use tokio::try_join;
@@ -118,8 +118,8 @@ impl Broadcasting {
         self.ipv4_id.is_some() || self.ipv6_id.is_some()
     }
 
-    pub async fn fetch_version(&self, settings: &Settings) -> Result<Version, Failure> {
-        let adapter = PeCaStAdapter::new(settings.general_settings.peer_cast_port);
+    pub async fn fetch_version(&self, peer_cast_port: NonZero<u16>) -> Result<Version, Failure> {
+        let adapter = PeCaStAdapter::new(peer_cast_port);
         let agent_name = adapter.get_version_info().await?;
         let version = agent_name
             .split('/')
