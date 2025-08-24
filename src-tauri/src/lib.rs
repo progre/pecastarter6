@@ -10,7 +10,7 @@ use core::{
     app::App,
     utils::{dialog::show_dialog, tcp::find_free_port},
 };
-use std::process::Command;
+use std::{path::PathBuf, process::Command, str::FromStr};
 
 use features::{
     terms_check,
@@ -98,8 +98,14 @@ pub fn run() {
             let path_resolver = tauri_app.path();
             let app_config_dir = path_resolver.app_config_dir().unwrap();
             let resource_dir = path_resolver.resource_dir().unwrap();
+
+            let settings_path = std::env::args()
+                .nth(1)
+                .map(|x| PathBuf::from_str(&x).unwrap())
+                .unwrap_or_else(|| app_config_dir.join("settings.json"));
+
             let app = tauri::async_runtime::block_on(async {
-                App::new(&app_config_dir, &resource_dir).await
+                App::new(&app_config_dir, &resource_dir, &settings_path).await
             });
             let weak = app.ui.ui_window_delegate_weak();
             *app.ui.window().app_handle().lock().unwrap() = Some(tauri_app.handle().to_owned());

@@ -23,12 +23,12 @@ use super::{app::App, entities::contact_status::ContactStatus};
 
 pub struct AppUiDelegate {
     app: Weak<App>,
-    app_dir: PathBuf,
+    settings_path: PathBuf,
 }
 
 impl AppUiDelegate {
-    pub fn new(app: Weak<App>, app_dir: PathBuf) -> Self {
-        Self { app, app_dir }
+    pub fn new(app: Weak<App>, settings_path: PathBuf) -> Self {
+        Self { app, settings_path }
     }
 
     fn app(&self) -> Arc<App> {
@@ -56,7 +56,7 @@ impl UiDelegate for AppUiDelegate {
         let app = self.app();
         let mut settings = app.settings.lock().await;
         settings.general_settings = general_settings;
-        save_settings_and_show_dialog_if_error(&self.app_dir, &settings).await;
+        save_settings_and_show_dialog_if_error(&self.settings_path, &settings).await;
 
         self.app()
             .listen_rtmp_if_need(self.app().rtmp_server.lock().await.deref_mut(), &settings)
@@ -74,7 +74,7 @@ impl UiDelegate for AppUiDelegate {
         let app = self.app();
         let mut settings = app.settings.lock().await;
         settings.yellow_pages_settings = yellow_pages_settings;
-        save_settings_and_show_dialog_if_error(&self.app_dir, &settings).await;
+        save_settings_and_show_dialog_if_error(&self.settings_path, &settings).await;
 
         app.listen_rtmp_if_need(app.rtmp_server.lock().await.deref_mut(), &settings)
             .await;
@@ -115,7 +115,7 @@ impl UiDelegate for AppUiDelegate {
             app.update_histories(&mut settings, &app.ui);
         }
 
-        save_settings_and_show_dialog_if_error(&self.app_dir, &settings).await;
+        save_settings_and_show_dialog_if_error(&self.settings_path, &settings).await;
 
         app.bbs_listener_container
             .lock()
@@ -138,7 +138,7 @@ impl UiDelegate for AppUiDelegate {
         let app = self.app();
         let mut settings = app.settings.lock().await;
         settings.other_settings = other_settings;
-        save_settings_and_show_dialog_if_error(&self.app_dir, &settings).await;
+        save_settings_and_show_dialog_if_error(&self.settings_path, &settings).await;
 
         let (is_broadcasting, ipv4_id, ipv6_id) = {
             let broadcasting = app.broadcasting.lock().await;

@@ -53,7 +53,7 @@ async fn start_channel(
 
 pub async fn start_broadcast(
     app: &Arc<App>,
-    app_dir: &Path,
+    settings_path: &Path,
 ) -> Result<(NonZero<u16>, Option<JpnknBbsAutoComment>), Failure> {
     let (rtmp_conn_port, jpnkn_bbs_auto_comment) = {
         let settings = app.settings.lock().await;
@@ -73,7 +73,7 @@ pub async fn start_broadcast(
     {
         let mut settings = app.settings.lock().await;
         app.update_histories(&mut settings, &app.ui);
-        save_settings_and_show_dialog_if_error(app_dir, &settings).await;
+        save_settings_and_show_dialog_if_error(settings_path, &settings).await;
     }
 
     app.ui.set_rtmp("streaming".to_owned());

@@ -97,10 +97,12 @@ pub struct App {
 }
 
 impl App {
-    async fn internal_new(app_dir: &Path, resource_dir: &Path) -> Self {
+    async fn internal_new(app_dir: &Path, settings_path: &Path, resource_dir: &Path) -> Self {
         Self {
             yp_configs: read_yp_configs_and_show_dialog_if_error(app_dir, resource_dir).await,
-            settings: Mutex::new(load_settings_and_show_dialog_if_error(app_dir).await),
+            settings: Mutex::new(
+                load_settings_and_show_dialog_if_error(app_dir, settings_path).await,
+            ),
             ui: Ui::new(),
             rtmp_server: Mutex::new(RtmpServer::new()),
             broadcasting: Mutex::new(Broadcasting::new()),
@@ -112,15 +114,15 @@ impl App {
         }
     }
 
-    pub async fn new(app_config_dir: &Path, resource_dir: &Path) -> Arc<App> {
-        let zelf = Arc::new(Self::internal_new(app_config_dir, resource_dir).await);
+    pub async fn new(app_config_dir: &Path, resource_dir: &Path, settings_path: &Path) -> Arc<App> {
+        let zelf = Arc::new(Self::internal_new(app_config_dir, settings_path, resource_dir).await);
         let app_rtmp_listener_delegate = Arc::new(AppRtmpListenerDelegate::new(
             Arc::downgrade(&zelf),
-            app_config_dir.to_owned(),
+            settings_path.to_owned(),
         ));
         let app_ui_delegate = Arc::new(AppUiDelegate::new(
             Arc::downgrade(&zelf),
-            app_config_dir.to_owned(),
+            settings_path.to_owned(),
         ));
         let app_bbs_listener_delegate =
             Arc::new(AppBbsListenerDelegate::new(Arc::downgrade(&zelf)));
@@ -177,12 +179,12 @@ impl App {
         zelf
     }
 
-    pub async fn show_check_again_terms_dialog_if_expired(&self, app_dir: &Path) -> bool {
+    pub async fn show_check_again_terms_dialog_if_expired(&self, settings_path: &Path) -> bool {
         let mut settings = self.settings.lock().await;
         match check_expired_terms(&self.yp_configs, &mut settings).await {
             Ok(true) => true,
             Ok(false) => {
-                save_settings_and_show_dialog_if_error(app_dir, &settings).await;
+                save_settings_and_show_dialog_if_error(settings_path, &settings).await;
                 self.ui.reset_yp_terms(&settings);
                 false
             }

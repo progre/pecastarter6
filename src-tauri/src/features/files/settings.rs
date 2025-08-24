@@ -34,25 +34,32 @@ async fn rename_bak(app_dir: &Path, base_path: &str) {
     }
 }
 
-pub async fn load_settings_and_show_dialog_if_error(app_dir: &Path) -> Settings {
+async fn migrate_old_settings(app_dir: &Path) {
     let old_path = app_dir.parent().unwrap().join("PeCa Starter");
-    if old_path.exists() && !app_dir.exists() {
-        if !show_confirm(&format!(
-            "設定ファイルを移動します。\nfrom: {}\nto: {}",
-            old_path.to_string_lossy(),
-            app_dir.to_string_lossy()
-        )) {
-            exit(0);
-            // -> !
-        }
-        if let Err(err) = rename(old_path, &app_dir).await {
-            show_dialog(&format!("ファイルの移動に失敗しました。({:?})", err));
-            panic!("{:?}", err);
-            // -> !
-        }
+    if !old_path.exists() || app_dir.exists() {
+        return;
     }
-    let path = app_dir.join("settings.json");
-    match read_to_string(&path).await {
+    if !show_confirm(&format!(
+        "設定ファイルを移動します。\nfrom: {}\nto: {}",
+        old_path.to_string_lossy(),
+        app_dir.to_string_lossy()
+    )) {
+        exit(0);
+        // -> !
+    }
+    if let Err(err) = rename(old_path, &app_dir).await {
+        show_dialog(&format!("ファイルの移動に失敗しました。({:?})", err));
+        panic!("{:?}", err);
+        // -> !
+    }
+}
+
+pub async fn load_settings_and_show_dialog_if_error(
+    app_dir: &Path,
+    settings_path: &Path,
+) -> Settings {
+    migrate_old_settings(app_dir).await;
+    match read_to_string(&settings_path).await {
         Err(err) => {
             if err.kind() != ErrorKind::NotFound {
                 error!("{:?}", err);
@@ -72,7 +79,7 @@ pub async fn load_settings_and_show_dialog_if_error(app_dir: &Path) -> Settings 
                     "設定ファイルが破損しています。({:?})\n設定をリセットします。",
                     err
                 ));
-                rename_bak(app_dir, &path.to_string_lossy()).await;
+                rename_bak(app_dir, &settings_path.to_string_lossy()).await;
                 Settings::default()
             }
             Ok(settings) => {
@@ -83,14 +90,14 @@ pub async fn load_settings_and_show_dialog_if_error(app_dir: &Path) -> Settings 
     }
 }
 
-pub async fn save_settings_and_show_dialog_if_error(app_dir: &Path, settings: &Settings) {
-    if let Err(err) = create_dir(app_dir).await
+pub async fn save_settings_and_show_dialog_if_error(settings_path: &Path, settings: &Settings) {
+    if let Err(err) = create_dir(settings_path.parent().unwrap()).await
         && err.kind() != ErrorKind::AlreadyExists
     {
         panic!("{:?}", err);
     }
     let opt = write(
-        app_dir.join("settings.json"),
+        settings_path,
         serde_json::to_string_pretty(&StoringSettings::from(settings)).unwrap(),
     )
     .await;

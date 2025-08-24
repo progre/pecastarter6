@@ -18,12 +18,12 @@ use super::app::App;
 
 pub struct AppRtmpListenerDelegate {
     app: Weak<App>,
-    app_dir: PathBuf,
+    settings_path: PathBuf,
 }
 
 impl AppRtmpListenerDelegate {
-    pub fn new(app: Weak<App>, app_dir: PathBuf) -> Self {
-        Self { app, app_dir }
+    pub fn new(app: Weak<App>, settings_path: PathBuf) -> Self {
+        Self { app, settings_path }
     }
 
     fn app(&self) -> Arc<App> {
@@ -36,14 +36,14 @@ impl RtmpListenerDelegate for AppRtmpListenerDelegate {
     async fn on_connect(&self, incoming: TcpStream) {
         let app = self.app();
         if !app
-            .show_check_again_terms_dialog_if_expired(&self.app_dir)
+            .show_check_again_terms_dialog_if_expired(&self.settings_path)
             .await
         {
             return;
         }
 
         let (rtmp_conn_port, mut jpnkn_bbs_auto_comment) =
-            match broadcast_events::start_broadcast(&app, &self.app_dir).await {
+            match broadcast_events::start_broadcast(&app, &self.settings_path).await {
                 Ok(ok) => ok,
                 Err(err) => {
                     app.ui.notify_failure(&err);
