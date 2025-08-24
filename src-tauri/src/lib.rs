@@ -12,6 +12,7 @@ use core::{
 };
 use std::{path::PathBuf, process::Command, str::FromStr};
 
+use clap::Parser;
 use features::{
     terms_check,
     ui::window::{InvokeMessageExt, WindowDelegate, WindowState},
@@ -20,6 +21,8 @@ use tauri::{
     Manager, generate_context,
     ipc::{Invoke, InvokeBody},
 };
+
+use crate::core::args::Args;
 
 fn invoke_handler(
     Invoke {
@@ -99,8 +102,8 @@ pub fn run() {
             let app_config_dir = path_resolver.app_config_dir().unwrap();
             let resource_dir = path_resolver.resource_dir().unwrap();
 
-            let settings_path = std::env::args()
-                .nth(1)
+            let settings_path = Args::parse()
+                .settings_path
                 .map(|x| PathBuf::from_str(&x).unwrap())
                 .unwrap_or_else(|| app_config_dir.join("settings.json"));
 
